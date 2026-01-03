@@ -1,0 +1,22 @@
+{
+  "name": "fukuoka-sauna-checker",
+  "version": "1.0.0",
+  "description": "福岡プライベートサウナ空き状況チェッカー",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "keywords": [
+    "sauna",
+    "fukuoka",
+    "availability"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "node-cron": "^3.0.3",
+    "puppeteer": "^24.34.0"
+  }
+}
