@@ -3,11 +3,17 @@
  * URL: https://sw.gflow.cloud/ooo-fukuoka/calendar_open
  *
  * 3部屋: サンカク(2名), マル(4名), シカク(6名)
- * テーブル形式: 横=日付、縦=時間枠
- * 空き=価格表示、空きなし=空欄
+ * 構造: 日付テーブルとスケジュールテーブルが別
+ * 空き=価格表示、空きなし=×
  */
 
 const URL = 'https://sw.gflow.cloud/ooo-fukuoka/calendar_open';
+
+const ROOMS = [
+  { name: 'サンカク', selector: '.sankaku-h1', keyword: 'サンカク' },
+  { name: 'マル', selector: '.prime-h1', keyword: 'マル' },
+  { name: 'シカク', selector: '.vip-h1', keyword: 'シカク' }
+];
 
 async function scrape(browser) {
   const page = await browser.newPage();
@@ -16,82 +22,106 @@ async function scrape(browser) {
 
   try {
     await page.goto(URL, { waitUntil: 'networkidle2', timeout: 60000 });
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    await new Promise(resolve => setTimeout(resolve, 4000));
 
     const result = { dates: {} };
 
     // 3つの部屋を順番に取得
-    const rooms = ['サンカクの部屋', 'マルの部屋', 'シカクの部屋'];
+    for (let roomIndex = 0; roomIndex < ROOMS.length; roomIndex++) {
+      const room = ROOMS[roomIndex];
 
-    for (let roomIndex = 0; roomIndex < rooms.length; roomIndex++) {
-      // 部屋を選択（最初の部屋はデフォルト）
+      // 部屋カードをクリック（最初の部屋以外）
       if (roomIndex > 0) {
-        const clicked = await page.evaluate((index) => {
-          const roomButtons = Array.from(document.querySelectorAll('[class*="room"], button, div'))
-            .filter(el => el.textContent.includes('部屋'));
-          // クリック可能な部屋選択要素を探す
-          const roomLinks = document.querySelectorAll('a, button');
-          for (const link of roomLinks) {
-            if (link.textContent.includes(index === 1 ? 'マル' : 'シカク')) {
-              link.click();
-              return true;
+        const clicked = await page.evaluate((selector, keyword) => {
+          // セレクタで直接探す
+          const h1 = document.querySelector(selector);
+          if (h1) {
+            h1.click();
+            return 'h1';
+          }
+          // キーワードで探す
+          const elements = document.querySelectorAll('h1, div, span');
+          for (const el of elements) {
+            if (el.textContent.includes(keyword + 'の部屋')) {
+              el.click();
+              return 'keyword';
             }
           }
-          return false;
-        }, roomIndex);
+          return null;
+        }, room.selector, room.keyword);
 
         if (clicked) {
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          await new Promise(resolve => setTimeout(resolve, 2500));
         }
       }
 
-      // テーブルから空き情報を取得
+      // 日付テーブル(index 6)と時間テーブル(index 7)からデータを取得
       const tableData = await page.evaluate(() => {
         const data = {};
-
-        // 日付ヘッダーを取得
-        const headerCells = document.querySelectorAll('th, td');
-        const dates = [];
         const year = new Date().getFullYear();
+        const tables = document.querySelectorAll('table');
 
-        for (const cell of headerCells) {
-          const match = cell.textContent.match(/(\d{2})\/(\d{2})/);
-          if (match) {
-            const month = match[1];
-            const day = match[2];
-            dates.push(`${year}-${month}-${day}`);
+        // 日付テーブルを探す（日付パターンを含み、時間を含まないもの）
+        let dates = [];
+        let dateTable = null;
+        for (const table of tables) {
+          const text = table.textContent;
+          if (/\d{2}\/\d{2}\([日月火水木金土]\)/.test(text) && !/\d{2}:\d{2}/.test(text)) {
+            dateTable = table;
+            const cells = table.querySelectorAll('th, td');
+            for (const cell of cells) {
+              const cellText = cell.textContent.trim();
+              const match = cellText.match(/(\d{2})\/(\d{2})\([日月火水木金土]\)/);
+              if (match) {
+                dates.push(`${year}-${match[1]}-${match[2]}`);
+              }
+            }
+            break;
           }
         }
 
-        // 時間枠と空き状況を取得
-        const rows = document.querySelectorAll('tr');
-        for (const row of rows) {
-          const cells = row.querySelectorAll('td');
-          if (cells.length < 2) continue;
+        if (dates.length === 0) return data;
 
-          // 最初のセルから時間を取得
-          const timeMatch = cells[0].textContent.match(/(\d{2}:\d{2})/);
-          if (!timeMatch) continue;
+        // 時間テーブルを探す（時間と価格を含むもの）
+        for (const table of tables) {
+          const text = table.textContent;
+          if (/\d{2}:\d{2}/.test(text) && /¥[\d,]+/.test(text)) {
+            const rows = table.querySelectorAll('tr');
 
-          const startTime = timeMatch[1];
+            for (const row of rows) {
+              const cells = row.querySelectorAll('th, td');
+              if (cells.length < 3) continue;
 
-          // 各日付の空き状況をチェック
-          for (let i = 1; i < cells.length && i - 1 < dates.length; i++) {
-            const cell = cells[i];
-            const dateStr = dates[i - 1];
+              // 最初のセルから時間を取得
+              const firstCellText = cells[0].textContent;
+              const timeMatch = firstCellText.match(/(\d{2}:\d{2})/);
+              if (!timeMatch) continue;
 
-            if (!dateStr) continue;
+              const startTime = timeMatch[1];
 
-            // 価格が表示されていれば空きあり
-            const hasPrice = /¥[\d,]+/.test(cell.textContent);
-            const isEmpty = cell.textContent.trim() === '' || cell.textContent.trim() === '\n';
+              // 列インデックス2から各日付の空き状況をチェック
+              // (index 0=時間, index 1=空白スペーサー, index 2以降=日付)
+              for (let i = 2; i < cells.length && i - 2 < dates.length; i++) {
+                const cell = cells[i];
+                const cellText = cell.textContent.trim();
+                const dateStr = dates[i - 2];
 
-            if (hasPrice) {
-              if (!data[dateStr]) {
-                data[dateStr] = [];
+                if (!dateStr) continue;
+
+                // 空白 = 予約済み、価格表示 = 空きあり
+                const hasPrice = /¥[\d,]+/.test(cellText);
+
+                if (hasPrice) {
+                  if (!data[dateStr]) {
+                    data[dateStr] = [];
+                  }
+                  if (!data[dateStr].includes(startTime)) {
+                    data[dateStr].push(startTime);
+                  }
+                }
               }
-              data[dateStr].push(startTime);
             }
+            break;
           }
         }
 
@@ -99,12 +129,25 @@ async function scrape(browser) {
       });
 
       // 部屋ごとのデータを結果にマージ
-      const roomName = rooms[roomIndex];
       for (const [dateStr, times] of Object.entries(tableData)) {
         if (!result.dates[dateStr]) {
           result.dates[dateStr] = {};
         }
-        result.dates[dateStr][roomName] = times;
+        result.dates[dateStr][room.name] = times.sort();
+      }
+
+      // 部屋データがなかった場合、空配列を設定
+      if (Object.keys(tableData).length === 0) {
+        const today = new Date();
+        for (let i = 0; i < 7; i++) {
+          const date = new Date(today);
+          date.setDate(today.getDate() + i);
+          const dateStr = date.toISOString().split('T')[0];
+          if (!result.dates[dateStr]) {
+            result.dates[dateStr] = {};
+          }
+          result.dates[dateStr][room.name] = [];
+        }
       }
     }
 

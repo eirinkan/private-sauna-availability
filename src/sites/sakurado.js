@@ -3,11 +3,12 @@
  * URL: https://sauna-sakurado.spa/reservation/
  *
  * 6部屋: 2-A, 2-B, 3-C, 3-D, 3-E, 3-F
- * - 予約可能: bg-amber-100/90 (黄色/アンバー)
- * - 予約不可: bg-gray-100/90 (グレー)
+ * - 予約可能: bg-amber (黄色/アンバー背景 + 価格表示)
+ * - 予約不可: bg-gray (グレー背景)
  */
 
 const URL = 'https://sauna-sakurado.spa/reservation/';
+const ROOM_NAMES = ['2-A', '2-B', '3-C', '3-D', '3-E', '3-F'];
 
 async function scrape(browser) {
   const page = await browser.newPage();
@@ -22,18 +23,16 @@ async function scrape(browser) {
 
     // 日付タブを取得
     const dateTabs = await page.evaluate(() => {
-      const tabs = Array.from(document.querySelectorAll('a.ff-EN'))
+      const tabs = Array.from(document.querySelectorAll('a'))
         .filter(el => /^\d+\/\d+\([日月火水木金土]\)$/.test(el.textContent.trim()));
-
-      return tabs.map(tab => ({
+      return tabs.map((tab, idx) => ({
         text: tab.textContent.trim(),
-        href: tab.getAttribute('href') || '',
-        isActive: tab.className.includes('bg-primary')
+        index: idx
       }));
     });
 
     // 各日付のデータを取得
-    for (let i = 0; i < dateTabs.length; i++) {
+    for (let i = 0; i < Math.min(dateTabs.length, 7); i++) {
       const tab = dateTabs[i];
 
       // 日付文字列をYYYY-MM-DD形式に変換
@@ -45,83 +44,94 @@ async function scrape(browser) {
       const year = new Date().getFullYear();
       const dateStr = `${year}-${month}-${day}`;
 
-      // アクティブでない場合はクリックして切り替え
+      // 日付タブをクリック
       if (i > 0) {
-        const clicked = await page.evaluate((index) => {
-          const tabs = Array.from(document.querySelectorAll('a.ff-EN'))
+        await page.evaluate((index) => {
+          const tabs = Array.from(document.querySelectorAll('a'))
             .filter(el => /^\d+\/\d+\([日月火水木金土]\)$/.test(el.textContent.trim()));
-
           if (tabs[index]) {
             tabs[index].click();
-            return true;
           }
-          return false;
         }, i);
-
-        if (clicked) {
-          await new Promise(resolve => setTimeout(resolve, 2000));
-        }
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
 
-      // その日の空き状況を取得
-      const dayData = await page.evaluate(() => {
+      // 空き状況を取得（列構造を解析）
+      const dayData = await page.evaluate((roomNames) => {
         const rooms = {};
-        const roomNames = ['2-A', '2-B', '3-C', '3-D', '3-E', '3-F'];
+        roomNames.forEach(name => { rooms[name] = []; });
 
-        // ページ全体のテキストから部屋ごとの情報を抽出
-        const allElements = Array.from(document.querySelectorAll('*'));
+        // 各部屋の列ヘッダーの位置を取得
+        const roomPositions = [];
+        document.querySelectorAll('*').forEach(el => {
+          const text = el.textContent.trim();
+          // 部屋名で始まる要素を探す（例: "2-A🈳" or "2-A "）
+          for (const roomName of roomNames) {
+            if (text.startsWith(roomName) && text.length < 30) {
+              const rect = el.getBoundingClientRect();
+              if (rect.width > 50 && rect.width < 300) {
+                // 重複を避けるためX位置をチェック
+                const exists = roomPositions.find(p =>
+                  p.name === roomName || Math.abs(p.x - rect.x) < 20
+                );
+                if (!exists) {
+                  roomPositions.push({
+                    name: roomName,
+                    x: rect.x,
+                    centerX: rect.x + rect.width / 2
+                  });
+                }
+              }
+            }
+          }
+        });
 
-        // 時間枠を持つ親要素を探す
-        const timeSlotContainers = Array.from(document.querySelectorAll('.open-modal'))
-          .filter(el => {
-            const text = el.textContent;
-            return /\d{2}:\d{2}/.test(text) && /¥[\d,]+/.test(text);
+        // X座標でソート
+        roomPositions.sort((a, b) => a.x - b.x);
+
+        // open-modalクラスの要素から時間枠を取得
+        document.querySelectorAll('.open-modal').forEach(el => {
+          const innerHTML = el.innerHTML;
+          const hasAmber = innerHTML.includes('bg-amber');
+
+          // アンバー背景（空き）の場合のみ処理
+          if (!hasAmber) return;
+
+          const text = el.textContent;
+          const timeMatch = text.match(/(\d{2}:\d{2})/);
+          if (!timeMatch) return;
+
+          const time = timeMatch[1];
+          const rect = el.getBoundingClientRect();
+          const elementCenterX = rect.x + rect.width / 2;
+
+          // どの部屋の列に属するか判定
+          let closestRoom = null;
+          let minDistance = Infinity;
+
+          roomPositions.forEach(room => {
+            const distance = Math.abs(elementCenterX - room.centerX);
+            if (distance < minDistance) {
+              minDistance = distance;
+              closestRoom = room.name;
+            }
           });
 
-        // 予約可能な枠を探す（amber = 予約可能）
-        const availableSlots = Array.from(document.querySelectorAll('[class*="bg-amber"]'))
-          .filter(el => /¥[\d,]+/.test(el.textContent));
-
-        // 親コンテナから時間情報を取得
-        availableSlots.forEach(slot => {
-          const parent = slot.closest('.open-modal');
-          if (parent) {
-            const times = parent.textContent.match(/\d{2}:\d{2}/g);
-            if (times && times.length >= 1) {
-              const startTime = times[0];
-              // どの部屋か特定（列の位置から推定）
-              // 簡易的に、slot要素の位置情報から推定
+          // 距離が妥当な範囲内なら追加
+          if (closestRoom && minDistance < 150) {
+            if (!rooms[closestRoom].includes(time)) {
+              rooms[closestRoom].push(time);
             }
           }
         });
 
-        // より詳細な解析: グリッド構造を利用
-        const gridItems = Array.from(document.querySelectorAll('[class*="grid"] > div, [class*="flex"] > div'));
-
-        // 各部屋ごとに空き時間を初期化
-        roomNames.forEach(name => {
-          rooms[name] = [];
-        });
-
-        // open-modalクラスを持つボタンから情報を抽出
-        const buttons = Array.from(document.querySelectorAll('button.open-modal, a.open-modal, div.open-modal'));
-
-        buttons.forEach((btn, index) => {
-          const times = btn.textContent.match(/\d{2}:\d{2}/g);
-          const price = btn.querySelector('[class*="bg-amber"]');
-
-          if (times && times.length >= 1 && price) {
-            const startTime = times[0];
-            // 部屋のインデックスを推定（6部屋×時間枠数で割り当て）
-            const roomIndex = index % 6;
-            if (roomIndex < roomNames.length) {
-              rooms[roomNames[roomIndex]].push(startTime);
-            }
-          }
+        // 時間でソート
+        Object.keys(rooms).forEach(key => {
+          rooms[key].sort();
         });
 
         return rooms;
-      });
+      }, ROOM_NAMES);
 
       result.dates[dateStr] = dayData;
     }
