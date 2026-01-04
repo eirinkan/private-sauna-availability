@@ -14,6 +14,12 @@ const BOOKING_URL = 'https://coubic.com/base-private-sauna/3957380/book';
 // コース種別（表示用）
 const COURSE_NAMES = ['80分コース'];
 
+// 今日が平日かどうか判定
+function isWeekday(date) {
+  const day = date.getDay();
+  return day >= 1 && day <= 5; // 月〜金
+}
+
 async function scrape(browser) {
   const page = await browser.newPage();
   await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
@@ -24,67 +30,94 @@ async function scrape(browser) {
     await new Promise(resolve => setTimeout(resolve, 4000));
 
     const result = { dates: {} };
+    const today = new Date();
 
-    // 1. メニュー選択ボタンをクリック（複数のセレクタを試す）
+    // 今日が平日か土日かを判定して適切なプランを選択
+    const targetPlan = isWeekday(today) ? '80分1名様(平日)' : '80分1名様(土曜・日曜・祭日)';
+
+    // 1. メニュー選択ボタンをクリック
+    // 「選択してください」テキストを含むボタンをPuppeteerネイティブでクリック
     let menuClicked = false;
-    const menuSelectors = [
-      '.CourseSelectModalWithIndicator_indicator-button__hzGVt',
-      'button[type="button"]',
-      '[class*="indicator-button"]'
-    ];
 
-    for (const selector of menuSelectors) {
-      const btn = await page.$(selector);
-      if (btn) {
-        const text = await page.evaluate(el => el.textContent, btn);
-        if (text && (text.includes('メニュー') || text.includes('選択'))) {
-          await btn.click();
-          menuClicked = true;
-          break;
-        }
+    // ボタンを全て取得してテキストでフィルタリング
+    const buttons = await page.$$('button');
+    for (const btn of buttons) {
+      const text = await page.evaluate(el => el.textContent, btn);
+      if (text && text.includes('選択してください')) {
+        await btn.click();
+        menuClicked = true;
+        console.log('    → BASE: メニューボタンをクリック');
+        break;
       }
     }
 
-    // ボタンが見つからない場合、テキストで探す
+    // 見つからなければ、page.evaluateでクリック
     if (!menuClicked) {
-      await page.evaluate(() => {
+      menuClicked = await page.evaluate(() => {
         const btns = document.querySelectorAll('button');
         for (const btn of btns) {
-          if (btn.textContent.includes('メニュー') || btn.textContent.includes('変更')) {
+          const text = btn.textContent.trim();
+          if (text.includes('選択してください') || text.includes('変更')) {
             btn.click();
             return true;
           }
         }
         return false;
       });
+      if (menuClicked) {
+        console.log('    → BASE: メニューボタンをevaluateでクリック');
+      }
     }
-    await new Promise(resolve => setTimeout(resolve, 2000));
 
-    // 2. コース選択（80分1名様(平日)）
-    const courseSelected = await page.evaluate(() => {
-      // まずラベルを探す
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    // ダイアログが開くのを待機
+    try {
+      await page.waitForSelector('dialog, [role="dialog"]', { timeout: 8000 });
+      console.log('    → BASE: ダイアログが開きました');
+    } catch (e) {
+      console.log('    → BASE: ダイアログが開きません。再試行...');
+
+      // 再度ボタンを探してクリック
+      const retryButtons = await page.$$('button');
+      for (const btn of retryButtons) {
+        const text = await page.evaluate(el => el.textContent, btn);
+        if (text && text.includes('選択してください')) {
+          await btn.click();
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          break;
+        }
+      }
+    }
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // 2. コース選択（今日の曜日に応じたプラン）
+    const courseSelected = await page.evaluate((plan) => {
+      // ラジオボタンを直接探す
+      const radios = document.querySelectorAll('input[type="radio"]');
+      for (const radio of radios) {
+        const label = radio.closest('label');
+        if (label && label.textContent.includes(plan)) {
+          radio.click();
+          return 'radio clicked: ' + plan;
+        }
+      }
+
+      // ラベルを探す
       const labels = document.querySelectorAll('label');
       for (const label of labels) {
-        if (label.textContent.includes('80分1名様(平日)')) {
+        if (label.textContent.includes(plan)) {
           const input = label.querySelector('input');
           if (input) {
             input.click();
-            return 'input clicked';
+            return 'input clicked: ' + plan;
           }
           label.click();
-          return 'label clicked';
+          return 'label clicked: ' + plan;
         }
       }
-      // div要素も探す
-      const divs = document.querySelectorAll('div[class*="cursor-pointer"], div[role="button"]');
-      for (const div of divs) {
-        if (div.textContent.includes('80分1名様(平日)')) {
-          div.click();
-          return 'div clicked';
-        }
-      }
-      return 'not found';
-    });
+      return 'not found: ' + plan;
+    }, targetPlan);
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     // 3. 完了ボタンをクリック
@@ -99,9 +132,58 @@ async function scrape(browser) {
       }
       return false;
     });
+
+    // 4. カレンダーが読み込まれるまで待機
+    // input[name="dateTimeSelection"] はカレンダーの予約枠ラジオボタン
+    try {
+      await page.waitForSelector('input[name="dateTimeSelection"]', { timeout: 15000 });
+      console.log('    → BASE: カレンダー要素を検出');
+    } catch (e) {
+      console.log('    → BASE: カレンダー要素タイムアウト、ダイアログ確認...');
+
+      // ダイアログがまだ開いているか確認
+      const dialogOpen = await page.evaluate(() => {
+        return !!document.querySelector('dialog[open], [role="dialog"]');
+      });
+
+      if (dialogOpen) {
+        console.log('    → BASE: ダイアログがまだ開いています。完了ボタンを再クリック...');
+        await page.evaluate(() => {
+          const buttons = document.querySelectorAll('button');
+          for (const btn of buttons) {
+            const text = btn.textContent.trim();
+            if (text === '完了' || text === '決定' || text.includes('OK')) {
+              btn.click();
+              return;
+            }
+          }
+        });
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      } else {
+        // ダイアログが閉じているなら、ページをスクロールして待機
+        await page.evaluate(() => window.scrollBy(0, 300));
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
+
+      // 再度カレンダー要素を待機
+      try {
+        await page.waitForSelector('input[name="dateTimeSelection"]', { timeout: 10000 });
+        console.log('    → BASE: 再試行でカレンダー要素を検出');
+      } catch (e2) {
+        // デバッグ用: ページの状態を記録
+        const pageState = await page.evaluate(() => {
+          return {
+            url: window.location.href,
+            radioCount: document.querySelectorAll('input[type="radio"]').length,
+            buttonTexts: Array.from(document.querySelectorAll('button')).map(b => b.textContent.trim().substring(0, 30)).slice(0, 10)
+          };
+        });
+        console.log('    → BASE: ページ状態:', JSON.stringify(pageState));
+      }
+    }
     await new Promise(resolve => setTimeout(resolve, 3000));
 
-    // 4. ラジオボタンから空き枠を抽出（ISOタイムスタンプ形式）
+    // 5. ラジオボタンから空き枠を抽出（ISOタイムスタンプ形式）
     // 注意: page.evaluate内では正規表現が正しく動作しないことがあるため文字列操作を使用
     const calendarData = await page.evaluate(() => {
       const availableSlots = {};

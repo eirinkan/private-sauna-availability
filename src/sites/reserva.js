@@ -158,9 +158,9 @@ async function scrapeRoomWithCookies(browser, room, facilityName, cfData) {
 
   try {
     // FlareSolverrから取得したUser-Agentを使用
-    const userAgent = cfData?.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+    const userAgent = cfData?.userAgent || 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
     await page.setUserAgent(userAgent);
-    await page.setViewport({ width: 1280, height: 800, deviceScaleFactor: 1 });
+    await page.setViewport({ width: 1280, height: 900, deviceScaleFactor: 1 });
 
     // FlareSolverrから取得したCookieを設定
     if (cfData?.cookies && cfData.cookies.length > 0) {
@@ -177,68 +177,68 @@ async function scrapeRoomWithCookies(browser, room, facilityName, cfData) {
       await page.setCookie(...puppeteerCookies);
     }
 
-    // ボット検知回避
+    // ボット検知回避を強化
     await page.evaluateOnNewDocument(() => {
-      Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+      Object.defineProperty(navigator, 'webdriver', { get: () => false });
       Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+      Object.defineProperty(navigator, 'languages', { get: () => ['ja-JP', 'ja', 'en-US', 'en'] });
       window.chrome = { runtime: {} };
+      // Permissions API
+      const originalQuery = window.navigator.permissions.query;
+      window.navigator.permissions.query = (parameters) => (
+        parameters.name === 'notifications' ?
+          Promise.resolve({ state: Notification.permission }) :
+          originalQuery(parameters)
+      );
     });
 
     await page.setExtraHTTPHeaders({
       'Accept-Language': 'ja,en-US;q=0.9,en;q=0.8',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache'
     });
 
-    // ページ読み込み
-    await page.goto(room.url, { waitUntil: 'networkidle2', timeout: 60000 });
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    // ページ読み込み（networkidle0でより確実に待機）
+    await page.goto(room.url, { waitUntil: 'networkidle0', timeout: 90000 });
 
-    // カレンダーセクションまでスクロール
-    await page.evaluate(() => {
-      const dateSection = document.querySelector('[class*="userselect-datetime"], [class*="date-time"], #userselect-datetime');
-      if (dateSection) {
-        dateSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      } else {
-        window.scrollTo(0, document.body.scrollHeight);
-      }
-    });
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // JavaScript実行完了を待機（追加の待機時間）
+    await new Promise(resolve => setTimeout(resolve, 5000));
 
-    // "Hourly Booking" または時間予約タイプをクリック
-    const clickedTimeType = await page.evaluate(() => {
-      // ラジオボタンまたは予約タイプを探してクリック
-      const timeRadio = document.querySelector('input[value="time"], input[id*="date-type-time"]');
-      if (timeRadio) {
-        timeRadio.click();
-        return 'radio clicked';
-      }
-
-      // ラベルをクリック
-      const labels = Array.from(document.querySelectorAll('label'));
-      for (const label of labels) {
-        if (label.textContent.includes('Hourly') || label.textContent.includes('時間') || label.textContent.includes('Time')) {
-          label.click();
-          return 'label clicked';
-        }
-      }
-
-      // userselect-date__type-selector をクリック
-      const typeSelector = document.querySelector('[class*="type-selector"]');
-      if (typeSelector) {
-        typeSelector.click();
-        return 'selector clicked';
-      }
-
-      return 'nothing clicked';
-    });
-
-    // カレンダー展開を待機（timebox要素が出現するまで）
+    // カレンダー展開を待機（timebox要素が出現するまで、長めのタイムアウト）
+    let timeboxFound = false;
     try {
-      await page.waitForSelector('input.timebox', { timeout: 10000 });
+      await page.waitForSelector('input.timebox', { timeout: 20000 });
+      timeboxFound = true;
     } catch (e) {
-      // タイムアウトしても続行
+      // タイムアウトした場合、ページ操作を試みる
     }
-    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    // timebox が見つからない場合、ページをスクロールして再試行
+    if (!timeboxFound) {
+      // ページ全体をスクロール
+      await page.evaluate(() => {
+        window.scrollTo(0, document.body.scrollHeight);
+      });
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      // カレンダーセクションを探してスクロール
+      await page.evaluate(() => {
+        const dateSection = document.querySelector('[class*="userselect-datetime"], [class*="date-time"], #userselect-datetime, [class*="calendar"]');
+        if (dateSection) {
+          dateSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      });
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      // 再度待機
+      try {
+        await page.waitForSelector('input.timebox', { timeout: 10000 });
+        timeboxFound = true;
+      } catch (e) {
+        // 引き続き処理
+      }
+    }
 
     // カレンダーテーブルまたはグリッドを探す
     let calendarData = await scrapeCalendarWithPuppeteer(page);
