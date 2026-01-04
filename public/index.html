@@ -39,7 +39,7 @@
 
     header {
       background: var(--bg-secondary);
-      padding: 12px 15px;
+      padding: 10px 12px;
       position: sticky;
       top: 0;
       z-index: 100;
@@ -47,59 +47,49 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
+      gap: 8px;
     }
 
     .header-left {
       display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .title-row {
-      display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
+      flex: 1;
+      min-width: 0;
     }
 
     header h1 {
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       font-weight: 600;
-      letter-spacing: 0.02em;
       color: var(--text-primary);
       white-space: nowrap;
     }
 
     .last-updated {
-      font-size: 0.65rem;
+      font-size: 0.6rem;
       color: var(--text-muted);
-    }
-
-    .controls {
-      display: flex;
-      gap: 8px;
-      align-items: center;
+      white-space: nowrap;
     }
 
     .toggle-container {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 4px;
     }
 
     .toggle-label {
-      font-size: 0.7rem;
-      color: var(--text-secondary);
+      font-size: 0.65rem;
+      color: var(--text-muted);
       white-space: nowrap;
     }
 
     .toggle-switch {
       position: relative;
-      width: 36px;
-      height: 20px;
+      width: 32px;
+      height: 18px;
       background: var(--bg-card);
       border: 1px solid var(--border);
-      border-radius: 10px;
+      border-radius: 9px;
       cursor: pointer;
       transition: all 0.2s ease;
     }
@@ -109,8 +99,8 @@
       position: absolute;
       top: 2px;
       left: 2px;
-      width: 14px;
-      height: 14px;
+      width: 12px;
+      height: 12px;
       background: var(--text-muted);
       border-radius: 50%;
       transition: all 0.2s ease;
@@ -122,19 +112,25 @@
     }
 
     .toggle-switch.active::after {
-      left: 18px;
+      left: 16px;
       background: var(--success);
     }
 
+    .controls {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
     input[type="date"] {
-      padding: 8px 10px;
+      padding: 6px 8px;
       border: 1px solid var(--border);
-      border-radius: 8px;
-      font-size: 14px;
+      border-radius: 6px;
+      font-size: 13px;
       background: var(--bg-card);
       color: var(--text-primary);
       font-family: inherit;
-      width: 130px;
+      width: 115px;
     }
 
     input[type="date"]:focus {
@@ -143,10 +139,10 @@
     }
 
     button {
-      padding: 8px 16px;
+      padding: 6px 12px;
       border: none;
-      border-radius: 8px;
-      font-size: 13px;
+      border-radius: 6px;
+      font-size: 12px;
       cursor: pointer;
       background: var(--accent);
       color: white;
@@ -502,14 +498,12 @@
 <body>
   <header>
     <div class="header-left">
-      <div class="title-row">
-        <h1>福岡サウナ空き状況</h1>
-        <div class="toggle-container">
-          <span class="toggle-label">空きのみ</span>
-          <div class="toggle-switch active" id="availableOnlyToggle"></div>
-        </div>
-      </div>
+      <h1>福岡サウナ空き状況</h1>
       <span class="last-updated" id="lastUpdated">更新: -</span>
+      <div class="toggle-container">
+        <span class="toggle-label">空きのみ</span>
+        <div class="toggle-switch active" id="availableOnlyToggle"></div>
+      </div>
     </div>
     <div class="controls">
       <input type="date" id="dateInput">
