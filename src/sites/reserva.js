@@ -27,6 +27,14 @@ const GIRAFFE_MINAMITENJIN_ROOMS = [
   {
     url: 'https://reserva.be/giraffe_minamitenjin/reserve?mode=service_staff&search_evt_no=88eJwzNDAyszACAAQoATQ&ctg_no=05eJwzMjQ2NgIAAvQA_A',
     name: '「陰」静の陰影（120分/定員4名）¥7,700〜¥11,000'
+  },
+  {
+    url: 'https://reserva.be/giraffe_minamitenjin/reserve?mode=service_staff&search_evt_no=6aeJwzNDAxNTcGAAQsATU&ctg_no=05eJwzMjQ2NgIAAvQA_A',
+    name: '「陽」光の陽彩【ナイトパック】（0:30〜8:40/定員7名）¥11,000〜¥19,800'
+  },
+  {
+    url: 'https://reserva.be/giraffe_minamitenjin/reserve?mode=service_staff&search_evt_no=2eeJwzNDAxNTEEAAQkATA&ctg_no=05eJwzMjQ2NgIAAvQA_A',
+    name: '「陰」静の陰影【ナイトパック】（0:30〜8:30/定員4名）¥12,100〜¥20,900'
   }
 ];
 
@@ -39,14 +47,6 @@ const GIRAFFE_TENJIN_ROOMS = [
   {
     url: 'https://reserva.be/giraffe_minamitenjin/reserve?mode=service_staff&search_evt_no=4feJyzNLcwMAIAAzgBCw&ctg_no=5aeJwzMjQyMAQAAuoA9w',
     name: '温冷交互（120分/定員4名）¥5,500〜¥9,900'
-  },
-  {
-    url: 'https://reserva.be/giraffe_minamitenjin/reserve?mode=service_staff&search_evt_no=6aeJwzNDAxNTcGAAQsATU&ctg_no=05eJwzMjQ2NgIAAvQA_A',
-    name: '和の静寂ナイトパック（300分/定員4名）¥11,000'
-  },
-  {
-    url: 'https://reserva.be/giraffe_minamitenjin/reserve?mode=service_staff&search_evt_no=2eeJwzNDAxNTEEAAQkATA&ctg_no=05eJwzMjQ2NgIAAvQA_A',
-    name: '温冷交互ナイトパック（300分/定員4名）¥11,000'
   }
 ];
 
