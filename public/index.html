@@ -791,12 +791,12 @@
       return { name: roomName, time, capacity, price };
     }
 
-    // 部屋一覧をレンダリング（GIRAFFEはグループ化）
+    // 部屋一覧をレンダリング（GIRAFFE/KUDOCHIはグループ化）
     function renderRooms(facility) {
-      const isGiraffe = facility.name.includes('GIRAFFE');
+      const shouldGroup = facility.name.includes('GIRAFFE') || facility.name.includes('KUDOCHI');
 
-      if (isGiraffe) {
-        // GIRAFFEの場合: 同じ部屋名をグループ化
+      if (shouldGroup) {
+        // GIRAFFE/KUDOCHIの場合: 同じ部屋名をグループ化（通常プラン＋ナイトパック）
         const groups = groupRoomsByBaseName(facility.rooms);
         return Object.entries(groups).map(([baseName, variants]) => {
           return `

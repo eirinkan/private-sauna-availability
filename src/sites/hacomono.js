@@ -13,15 +13,28 @@
 const URL = 'https://kudochi-sauna.hacomono.jp/reserve/schedule/6/25';
 
 // 部屋名と定員情報（統一フォーマット：部屋名（時間/定員）価格）
+// 通常プラン
 const ROOM_INFO = {
-  'Silk': 'Silk（90分/120分/定員2名）¥6,000-8,000',
-  'Orca': 'Orca（90分/120分/定員2名）¥6,000-8,000',
-  'Gold': 'Gold（90分/120分/定員2名）¥8,000-10,000',
-  'Club': 'Club（90分/120分/定員3名）¥8,000-10,000',
-  'Grove': 'Grove（90分/120分/定員3名）¥8,000-10,000',
+  'Silk': 'Silk（100分/120分/定員2名）¥6,000-8,000',
+  'Orca': 'Orca（100分/120分/定員2名）¥6,000-8,000',
+  'Gold': 'Gold（100分/120分/定員2名）¥8,000-10,000',
+  'Club': 'Club（100分/120分/定員3名）¥8,000-10,000',
+  'Grove': 'Grove（100分/120分/定員3名）¥8,000-10,000',
   'Oasis': 'Oasis（120分/定員4名）¥16,000',
   'Eden': 'Eden（120分/定員6名）¥24,000'
 };
+
+// ナイトパック（5時間）
+const NIGHT_PACK_INFO = {
+  'Silk': 'Silk（night/定員2名）¥12,000',
+  'Orca': 'Orca（night/定員2名）¥12,000',
+  'Gold': 'Gold（night/定員2名）¥15,000',
+  'Club': 'Club（night/定員3名）¥18,000',
+  'Grove': 'Grove（night/定員3名）¥18,000',
+  'Oasis': 'Oasis（night/定員4名）¥20,000',
+  'Eden': 'Eden（night/定員6名）¥28,000'
+};
+
 const ROOM_NAMES = Object.keys(ROOM_INFO);
 
 async function scrape(browser) {
@@ -62,7 +75,11 @@ async function scrape(browser) {
 
         const dayEl = dayElements[i];
         const roomSlots = {};
-        rooms.forEach(r => roomSlots[r] = []);
+        const nightSlots = {}; // ナイトパック用
+        rooms.forEach(r => {
+          roomSlots[r] = [];
+          nightSlots[r] = [];
+        });
 
         // 空きスロットのみ取得（disabled クラスがないもの）
         const availableLessons = dayEl.querySelectorAll('.d_lesson:not(.disabled)');
@@ -92,6 +109,9 @@ async function scrape(browser) {
             if (timeParts.length < 2) return;
             const timeRange = timeParts[0] + '〜' + timeParts[1]; // "15:30〜17:00"
 
+            // ナイトパック判定
+            const isNightPack = labelText.includes('5時間パック') || labelText.includes('ナイト');
+
             // 部屋名を抽出
             // パターン1: "Silk - 90分" → "Silk"
             // パターン2: "【5時間パック】Silk" → "Silk"
@@ -103,8 +123,16 @@ async function scrape(browser) {
               }
             }
 
-            if (roomName && !roomSlots[roomName].includes(timeRange)) {
-              roomSlots[roomName].push(timeRange);
+            if (roomName) {
+              if (isNightPack) {
+                if (!nightSlots[roomName].includes(timeRange)) {
+                  nightSlots[roomName].push(timeRange);
+                }
+              } else {
+                if (!roomSlots[roomName].includes(timeRange)) {
+                  roomSlots[roomName].push(timeRange);
+                }
+              }
             }
           }
         });
@@ -112,7 +140,8 @@ async function scrape(browser) {
         result.push({
           month: dateInfo.month,
           day: dateInfo.day,
-          slots: roomSlots
+          slots: roomSlots,
+          nightSlots: nightSlots
         });
       }
 
@@ -134,12 +163,9 @@ async function scrape(browser) {
       const dateStr = `${year}-${String(dayData.month).padStart(2, '0')}-${String(dayData.day).padStart(2, '0')}`;
       result.dates[dateStr] = {};
 
-      for (const room of ROOM_NAMES) {
-        // 時間をソート（開始時間で比較、深夜帯は24時以降として扱う）
-        const slots = dayData.slots[room] || [];
-        const displayName = ROOM_INFO[room] || room;
-        result.dates[dateStr][displayName] = slots.sort((a, b) => {
-          // "0:20〜5:20" から開始時間 "0:20" を抽出
+      // 時間ソート関数
+      const sortSlots = (slots) => {
+        return slots.sort((a, b) => {
           const aStart = a.split('〜')[0];
           const bStart = b.split('〜')[0];
           const [aH, aM] = aStart.split(':').map(Number);
@@ -149,6 +175,21 @@ async function scrape(browser) {
           const bHour = bH < 7 ? bH + 24 : bH;
           return (aHour * 60 + aM) - (bHour * 60 + bM);
         });
+      };
+
+      for (const room of ROOM_NAMES) {
+        // 通常プラン
+        const slots = dayData.slots[room] || [];
+        const displayName = ROOM_INFO[room] || room;
+        result.dates[dateStr][displayName] = sortSlots(slots);
+
+        // ナイトパック（空きがある場合のみ追加）
+        const nightSlots = dayData.nightSlots[room] || [];
+        if (nightSlots.length > 0 || slots.length === 0) {
+          // ナイトパックは常に表示（通常プランと同様に）
+          const nightDisplayName = NIGHT_PACK_INFO[room] || `${room}（night）`;
+          result.dates[dateStr][nightDisplayName] = sortSlots(nightSlots);
+        }
       }
     }
 
