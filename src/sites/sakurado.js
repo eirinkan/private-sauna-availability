@@ -10,15 +10,34 @@
 const URL = 'https://sauna-sakurado.spa/reservation/';
 
 // 部屋名と定員・時間・価格情報（税込価格）
-// 統一フォーマット：部屋名（時間/定員）価格レンジ（平日-土日祝）
 const ROOM_INFO = {
-  '2-A': { display: '2-A（140分/定員6名）¥46,860-49,203', capacity: 6, minutes: 140, weekday: 46860, weekend: 49203 },
-  '2-B': { display: '2-B（140分/定員6名）¥40,900-42,945', capacity: 6, minutes: 140, weekday: 40900, weekend: 42945 },
-  '3-C': { display: '3-C（125分/定員4名）¥17,600-18,480', capacity: 4, minutes: 125, weekday: 17600, weekend: 18480 },
-  '3-D': { display: '3-D（125分/定員2名）¥9,000-9,450', capacity: 2, minutes: 125, weekday: 9000, weekend: 9450 },
-  '3-E': { display: '3-E（135分/定員6名）¥24,750-25,987', capacity: 6, minutes: 135, weekday: 24750, weekend: 25987 },
-  '3-F': { display: '3-F（95分/定員4名）¥15,400-16,170', capacity: 4, minutes: 95, weekday: 15400, weekend: 16170 }
+  '2-A': { base: '2-A（140分/定員6名）', capacity: 6, minutes: 140, weekday: 46860, weekend: 49203 },
+  '2-B': { base: '2-B（140分/定員6名）', capacity: 6, minutes: 140, weekday: 40900, weekend: 42945 },
+  '3-C': { base: '3-C（125分/定員4名）', capacity: 4, minutes: 125, weekday: 17600, weekend: 18480 },
+  '3-D': { base: '3-D（125分/定員2名）', capacity: 2, minutes: 125, weekday: 9000, weekend: 9450 },
+  '3-E': { base: '3-E（135分/定員6名）', capacity: 6, minutes: 135, weekday: 24750, weekend: 25987 },
+  '3-F': { base: '3-F（95分/定員4名）', capacity: 4, minutes: 95, weekday: 15400, weekend: 16170 }
 };
+
+// 価格をフォーマット（カンマ区切り）
+function formatPrice(price) {
+  return '¥' + price.toLocaleString('ja-JP');
+}
+
+// 日付が土日祝かどうか判定
+function isWeekend(dateStr) {
+  const date = new Date(dateStr);
+  const day = date.getDay();
+  return day === 0 || day === 6; // 0=日曜, 6=土曜
+}
+
+// 日付に応じた表示名を生成
+function getDisplayName(shortName, dateStr) {
+  const info = ROOM_INFO[shortName];
+  if (!info) return shortName;
+  const price = isWeekend(dateStr) ? info.weekend : info.weekday;
+  return `${info.base}${formatPrice(price)}`;
+}
 const ROOM_NAMES = Object.keys(ROOM_INFO);
 
 async function scrape(browser) {
@@ -145,10 +164,10 @@ async function scrape(browser) {
         return rooms;
       }, ROOM_NAMES);
 
-      // 部屋名を表示名に変換
+      // 部屋名を表示名に変換（日付に応じた価格を表示）
       const convertedDayData = {};
       for (const [shortName, slots] of Object.entries(dayData)) {
-        const displayName = ROOM_INFO[shortName]?.display || shortName;
+        const displayName = getDisplayName(shortName, dateStr);
         convertedDayData[displayName] = slots;
       }
       result.dates[dateStr] = convertedDayData;
