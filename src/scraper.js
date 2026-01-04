@@ -149,14 +149,14 @@ function getAvailability(date) {
 
   // 各施設のデータを整形（KUDOCHIを一番上に）
   const facilityInfo = [
-    { key: 'kudochi', name: 'KUDOCHI福岡中洲', url: 'https://kudochi-sauna.hacomono.jp/reserve/schedule/6/25', mapUrl: 'https://www.google.com/maps/search/?api=1&query=KUDOCHI+福岡中洲' },
-    { key: 'sakurado', name: 'SAUNA SAKURADO', url: 'https://sauna-sakurado.spa/reservation/', mapUrl: 'https://www.google.com/maps/search/?api=1&query=SAUNA+SAKURADO+福岡' },
-    { key: 'giraffeMiamitenjin', name: 'GIRAFFE 天神', url: 'https://reserva.be/giraffe_minamitenjin', mapUrl: 'https://maps.app.goo.gl/jzrDoYaTVege5srB6' },
-    { key: 'giraffeTenjin', name: 'GIRAFFE 南天神', url: 'https://reserva.be/giraffe_minamitenjin', mapUrl: 'https://maps.app.goo.gl/nAnPLjANSzuPVeLZA' },
-    { key: 'saunaOoo', name: 'SAUNA OOO FUKUOKA', url: 'https://sw.gflow.cloud/ooo-fukuoka/calendar_open', mapUrl: 'https://www.google.com/maps/search/?api=1&query=SAUNA+OOO+FUKUOKA' },
-    { key: 'base', name: 'BASE Private sauna', url: 'https://coubic.com/base-private-sauna/3957380/book/course_type', mapUrl: 'https://www.google.com/maps/search/?api=1&query=BASE+Private+sauna+福岡' },
-    { key: 'myaku', name: '脈 MYAKU', url: 'https://spot-ly.jp/ja/hotels/176', mapUrl: 'https://www.google.com/maps/search/?api=1&query=脈+MYAKU+サウナ+天神' },
-    { key: 'yogan', name: 'サウナヨーガン福岡天神', url: 'https://reserva.be/saunayogan/reserve?mode=service_staff&search_evt_no=eeeJyzMDY2MQIAAxwBBQ', mapUrl: 'https://www.google.com/maps/search/?api=1&query=サウナヨーガン+福岡天神' }
+    { key: 'kudochi', name: 'KUDOCHI福岡中洲', url: 'https://kudochi-sauna.hacomono.jp/reserve/schedule/6/25', hpUrl: 'https://kudochi.jp/nakasu/', mapUrl: 'https://www.google.com/maps/search/?api=1&query=KUDOCHI+福岡中洲' },
+    { key: 'sakurado', name: 'SAUNA SAKURADO', url: 'https://sauna-sakurado.spa/reservation/', hpUrl: 'https://sauna-sakurado.spa/', mapUrl: 'https://www.google.com/maps/search/?api=1&query=SAUNA+SAKURADO+福岡' },
+    { key: 'giraffeMiamitenjin', name: 'GIRAFFE 天神', url: 'https://reserva.be/giraffe_minamitenjin', hpUrl: 'https://giraffe-sauna.com/', mapUrl: 'https://maps.app.goo.gl/jzrDoYaTVege5srB6' },
+    { key: 'giraffeTenjin', name: 'GIRAFFE 南天神', url: 'https://reserva.be/giraffe_minamitenjin', hpUrl: 'https://giraffe-sauna.com/', mapUrl: 'https://maps.app.goo.gl/nAnPLjANSzuPVeLZA' },
+    { key: 'saunaOoo', name: 'SAUNA OOO FUKUOKA', url: 'https://sw.gflow.cloud/ooo-fukuoka/calendar_open', hpUrl: 'https://sauna-ooo.com/', mapUrl: 'https://www.google.com/maps/search/?api=1&query=SAUNA+OOO+FUKUOKA' },
+    { key: 'base', name: 'BASE Private sauna', url: 'https://coubic.com/base-private-sauna/3957380/book/course_type', hpUrl: 'https://www.instagram.com/base_privatesauna/', mapUrl: 'https://www.google.com/maps/search/?api=1&query=BASE+Private+sauna+福岡' },
+    { key: 'myaku', name: '脈 MYAKU', url: 'https://spot-ly.jp/ja/hotels/176', hpUrl: 'https://myaku-sauna.com/', mapUrl: 'https://www.google.com/maps/search/?api=1&query=脈+MYAKU+サウナ+天神' },
+    { key: 'yogan', name: 'サウナヨーガン福岡天神', url: 'https://reserva.be/saunayogan/reserve?mode=service_staff&search_evt_no=eeeJyzMDY2MQIAAxwBBQ', hpUrl: 'https://www.saunayogan.jp/', mapUrl: 'https://www.google.com/maps/search/?api=1&query=サウナヨーガン+福岡天神' }
   ];
 
   for (const info of facilityInfo) {
@@ -166,6 +166,7 @@ function getAvailability(date) {
       result.facilities.push({
         name: info.name,
         url: info.url,
+        hpUrl: info.hpUrl,
         mapUrl: info.mapUrl,
         error: facilityData.error,
         rooms: []
@@ -187,6 +188,7 @@ function getAvailability(date) {
     result.facilities.push({
       name: info.name,
       url: info.url,
+      hpUrl: info.hpUrl,
       mapUrl: info.mapUrl,
       rooms
     });

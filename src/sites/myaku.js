@@ -3,9 +3,9 @@
  * URL: https://spot-ly.jp/ja/hotels/176
  *
  * 3部屋:
- * - 休 KYU (3名): 90分プラン（午後）
- * - 水 MIZU (2名): ナイトパック、90分（午前/午後）
- * - 火 HI (4名): ナイトパック、90分（午前/午後）
+ * - 休 KYU (3名): 90分プラン（午後）¥9,130〜
+ * - 水 MIZU (2名): ナイトパック ¥8,800〜、90分（午前/午後）¥6,600〜
+ * - 火 HI (4名): ナイトパック ¥10,120〜、90分（午前/午後）¥7,150〜
  *
  * 構造: 週間カレンダー形式（◯/✕で日単位の空き表示）
  */
@@ -26,17 +26,17 @@ function getUrl() {
   return `https://spot-ly.jp/ja/hotels/176?checkinDatetime=${formatDate(today)}&checkoutDatetime=${formatDate(endDate)}`;
 }
 
-// 部屋情報（統一フォーマット：部屋名（時間/定員）価格）
+// 部屋情報
 const ROOM_INFO = {
   '休 -KYU-': {
-    displayName: '休 KYU（90分/定員3名）¥5,500',
+    displayName: '休 KYU（90分/定員3名）¥9,130〜',
     capacity: 3,
     plans: {
       '90分プラン（午後）': { times: ['11:30〜13:00', '13:30〜15:00', '15:30〜17:00', '17:30〜19:00', '19:30〜21:00'] }
     }
   },
   '水 -MIZU-': {
-    displayName: '水 MIZU（90分/定員2名）¥5,500',
+    displayName: '水 MIZU（90分/定員2名）¥6,600〜',
     capacity: 2,
     plans: {
       'ナイトパック': { times: ['01:00〜08:30'], isNight: true },
@@ -45,7 +45,7 @@ const ROOM_INFO = {
     }
   },
   '火 -HI-': {
-    displayName: '火 HI（90分/定員4名）¥5,500',
+    displayName: '火 HI（90分/定員4名）¥7,150〜',
     capacity: 4,
     plans: {
       'ナイトパック': { times: ['00:30〜08:00'], isNight: true },
@@ -55,6 +55,9 @@ const ROOM_INFO = {
   }
 };
 
+// 休 KYU 宿泊プランリンク
+const KYU_STAY_URL = 'https://hotel.travel.rakuten.co.jp/hotelinfo/plan/?f_no=191639&f_flg=PLAN';
+
 async function scrape(browser) {
   const page = await browser.newPage();
   await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
@@ -63,37 +66,87 @@ async function scrape(browser) {
   try {
     const url = getUrl();
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
-    await new Promise(resolve => setTimeout(resolve, 5000));
+
+    // ページ下部までスクロールしてコンテンツをロード
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    // 空室カレンダーがレンダリングされるまで待機（◯または✕が表示されるまで）
+    await page.waitForFunction(
+      () => document.body.innerText.includes('月\n火\n水\n木\n金\n土\n日\n'),
+      { timeout: 30000 }
+    ).catch(() => {});
+
+    await new Promise(resolve => setTimeout(resolve, 3000));
 
     // ページからプランデータを抽出
     const plansData = await page.evaluate(() => {
-      const allText = document.body.innerText;
-      const planRegex = /【([^】]+)】([^\n]+)\n\n([^\n]+)\n([^日]+)日\n月\n火\n水\n木\n金\n土\n(\d+\/\d+)\n([◯✕])\n(\d+\/\d+)\n([◯✕])\n(\d+\/\d+)\n([◯✕])\n(\d+\/\d+)\n([◯✕])\n(\d+\/\d+)\n([◯✕])\n(\d+\/\d+)\n([◯✕])\n(\d+\/\d+)\n([◯✕])/g;
-
+      const bodyText = document.body.innerText;
       const plans = [];
-      let match;
-      while ((match = planRegex.exec(allText)) !== null) {
-        plans.push({
-          room: match[1],
-          planType: match[2],
-          dates: [
-            { date: match[5], available: match[6] === '◯' },
-            { date: match[7], available: match[8] === '◯' },
-            { date: match[9], available: match[10] === '◯' },
-            { date: match[11], available: match[12] === '◯' },
-            { date: match[13], available: match[14] === '◯' },
-            { date: match[15], available: match[16] === '◯' },
-            { date: match[17], available: match[18] === '◯' }
-          ]
-        });
+
+      // 週範囲を取得 (例: "1/05 (月) 〜 1/11 (日)")
+      const weekMatch = bodyText.match(/(\d{1,2})\/(\d{2})\s*\([月火水木金土日]\)\s*[〜~]\s*(\d{1,2})\/(\d{2})/);
+      if (!weekMatch) return plans;
+
+      const year = new Date().getFullYear();
+      const currentMonth = new Date().getMonth() + 1;
+
+      // 各プランセクションを検索（大人\nで終了するパターン）
+      const planPatterns = [
+        { room: '休 -KYU-', plan: '90分プラン（午後）', regex: /【休\s*-KYU-】90分プラン（午後）[\s\S]*?月\n火\n水\n木\n金\n土\n日\n([\s\S]*?)\n大人/ },
+        { room: '水 -MIZU-', plan: 'ナイトパック', regex: /【水\s*-MIZU-】ナイトパック[\s\S]*?月\n火\n水\n木\n金\n土\n日\n([\s\S]*?)\n大人/ },
+        { room: '水 -MIZU-', plan: '90分プラン（午後）', regex: /【水\s*-MIZU-】90分プラン（午後）[\s\S]*?月\n火\n水\n木\n金\n土\n日\n([\s\S]*?)\n大人/ },
+        { room: '水 -MIZU-', plan: '90分プラン（午前）', regex: /【水\s*-MIZU-】90分プラン（午前）[\s\S]*?月\n火\n水\n木\n金\n土\n日\n([\s\S]*?)\n大人/ },
+        { room: '火 -HI-', plan: 'ナイトパック', regex: /【火\s*-HI-】ナイトパック[\s\S]*?月\n火\n水\n木\n金\n土\n日\n([\s\S]*?)\n大人/ },
+        { room: '火 -HI-', plan: '90分プラン（午後）', regex: /【火\s*-HI-】90分プラン（午後）[\s\S]*?月\n火\n水\n木\n金\n土\n日\n([\s\S]*?)\n大人/ },
+        { room: '火 -HI-', plan: '90分プラン（午前）', regex: /【火\s*-HI-】90分プラン（午前）[\s\S]*?月\n火\n水\n木\n金\n土\n日\n([\s\S]*?)\n大人/ }
+      ];
+
+      for (const pattern of planPatterns) {
+        const match = bodyText.match(pattern.regex);
+        if (match) {
+          // カレンダーデータを解析 (例: "1/5\n◯\n1/6\n◯\n...")
+          const calendarText = match[1];
+          const dateAvailPairs = calendarText.trim().split('\n');
+
+          const dates = [];
+          for (let i = 0; i < dateAvailPairs.length - 1; i += 2) {
+            const dateStr = dateAvailPairs[i];
+            const avail = dateAvailPairs[i + 1];
+
+            const dateMatch = dateStr.match(/(\d{1,2})\/(\d{1,2})/);
+            if (dateMatch) {
+              let month = parseInt(dateMatch[1]);
+              let day = parseInt(dateMatch[2]);
+              let dateYear = year;
+
+              // 1月で現在が12月なら来年
+              if (month === 1 && currentMonth === 12) {
+                dateYear = year + 1;
+              }
+
+              dates.push({
+                date: `${month}/${day}`,
+                fullDate: `${dateYear}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+                available: avail === '◯'
+              });
+            }
+          }
+
+          plans.push({
+            room: pattern.room,
+            planType: pattern.plan,
+            dates: dates
+          });
+        }
       }
+
       return plans;
     });
 
     // 結果を整形
     const result = { dates: {} };
     const currentYear = new Date().getFullYear();
-    const currentMonth = new Date().getMonth() + 1;
 
     for (const plan of plansData) {
       const roomInfo = ROOM_INFO[plan.room];
@@ -102,18 +155,14 @@ async function scrape(browser) {
       const planInfo = roomInfo.plans[plan.planType];
       if (!planInfo) continue;
 
-      // 部屋名（統一）
-      const displayName = roomInfo.displayName;
+      // 部屋名を決定（ナイトパックは別表示）
+      let displayName = roomInfo.displayName;
+      if (planInfo.isNight) {
+        displayName = displayName.replace(/（90分/, '（night');
+      }
 
       for (const dateInfo of plan.dates) {
-        // 日付を YYYY-MM-DD 形式に変換
-        const [month, day] = dateInfo.date.split('/').map(Number);
-        let year = currentYear;
-        // 1月で現在が12月なら来年
-        if (month === 1 && currentMonth === 12) {
-          year = currentYear + 1;
-        }
-        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const dateStr = dateInfo.fullDate;
 
         if (!result.dates[dateStr]) {
           result.dates[dateStr] = {};

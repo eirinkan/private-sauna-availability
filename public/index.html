@@ -603,17 +603,6 @@
   <div class="filter-bar">
     <select id="dateSelect"></select>
     <span class="filter-separator">|</span>
-    <select id="guestCount">
-      <option value="1">1名</option>
-      <option value="2" selected>2名</option>
-      <option value="3">3名</option>
-      <option value="4">4名</option>
-      <option value="5">5名</option>
-      <option value="6">6名</option>
-      <option value="7">7名</option>
-    </select>
-    <span class="filter-separator">|</span>
-    <span class="filter-label">時間</span>
     <select id="startHour">
       <option value="">開始</option>
       <option value="8">8時</option>
@@ -634,7 +623,7 @@
       <option value="23">23時</option>
       <option value="24">24時</option>
     </select>
-    <span class="filter-separator">〜</span>
+    <span class="filter-separator">-</span>
     <select id="endHour">
       <option value="">終了</option>
       <option value="10">10時</option>
@@ -667,6 +656,16 @@
       <button class="preset-btn" data-start="17" data-end="24">夜</button>
       <button class="preset-btn" data-start="23" data-end="32">深夜</button>
     </div>
+    <span class="filter-separator">|</span>
+    <select id="guestCount">
+      <option value="1">1名</option>
+      <option value="2" selected>2名</option>
+      <option value="3">3名</option>
+      <option value="4">4名</option>
+      <option value="5">5名</option>
+      <option value="6">6名</option>
+      <option value="7">7名</option>
+    </select>
   </div>
 
   <main class="facilities" id="facilities">
@@ -719,10 +718,10 @@
           2: { weekday: { 80: 7800, 100: 9100, 120: 10300, 150: 12100 }, weekend: { 80: 8300, 100: 9600, 120: 10800, 150: 12600 } }
         }
       },
-      // 脈 MYAKU（1人5,500円、人数で計算）
-      '休 KYU': { capacity: 3, perPerson: 5500 },
-      '水 MIZU': { capacity: 2, perPerson: 5500 },
-      '火 HI': { capacity: 4, perPerson: 5500 },
+      // 脈 MYAKU（部屋別料金、ナイトパックは別表示）
+      '休 KYU': { capacity: 3, base: 9130 },
+      '水 MIZU': { capacity: 2, base: 6600, nightBase: 8800 },
+      '火 HI': { capacity: 4, base: 7150, nightBase: 10120 },
       // サウナヨーガン（平日/土日祝で料金変動）
       'プライベートサウナ': { capacity: 3, weekday: 9900, weekend: 13200 }
     };
@@ -785,8 +784,8 @@
         return `¥${price.toLocaleString()}`;
       }
 
-      // GIRAFFE
-      if (pricingKey && guestPricing[pricingKey] && guestPricing[pricingKey].base) {
+      // GIRAFFE（人数別追加料金あり）
+      if (pricingKey && guestPricing[pricingKey] && guestPricing[pricingKey].base && guestPricing[pricingKey].additional !== undefined) {
         const data = guestPricing[pricingKey];
         if (isNight && data.nightBase) {
           const price = data.nightBase + (guests > 1 ? (guests - 1) * data.nightAdditional : 0);
@@ -808,11 +807,13 @@
         return `¥${minPrice.toLocaleString()}-${maxPrice.toLocaleString()}`;
       }
 
-      // 脈 MYAKU（1人5,500円）
-      if (pricingKey && guestPricing[pricingKey] && guestPricing[pricingKey].perPerson) {
+      // 脈 MYAKU（部屋別料金）
+      if (pricingKey && guestPricing[pricingKey] && guestPricing[pricingKey].base) {
         const data = guestPricing[pricingKey];
-        const price = data.perPerson * guests;
-        return `¥${price.toLocaleString()}`;
+        if (isNight && data.nightBase) {
+          return `¥${data.nightBase.toLocaleString()}〜`;
+        }
+        return `¥${data.base.toLocaleString()}〜`;
       }
 
       // サウナヨーガン（平日/土日祝）
@@ -919,8 +920,8 @@
         roomName = name.replace(/（(?:[\d分\/]+|night)\/定員\d+名）/, '');
       }
 
-      // 価格を抽出（¥6,000-8,000 形式に対応）
-      const priceMatch = roomName.match(/(¥[\d,]+(?:[-〜～][\d,]+)?)/);
+      // 価格を抽出（¥6,000-8,000 や ¥6,600〜 形式に対応）
+      const priceMatch = roomName.match(/(¥[\d,]+(?:[-〜～][\d,]*)?)/);
       if (priceMatch) {
         price = priceMatch[1];
         roomName = roomName.replace(priceMatch[0], '').trim();
@@ -1218,6 +1219,7 @@
           <div class="facility-header">
             <span class="facility-name">${facility.name}</span>
             <div>
+              ${facility.hpUrl ? '<a href="' + facility.hpUrl + '" target="_blank" class="map-btn">HP</a>' : ''}
               ${facility.mapUrl ? '<a href="' + facility.mapUrl + '" target="_blank" class="map-btn">MAP</a>' : ''}
               <a href="${facility.url}" target="_blank" class="reserve-btn">予約</a>
             </div>
