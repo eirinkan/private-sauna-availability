@@ -122,7 +122,7 @@
       align-items: center;
     }
 
-    input[type="date"] {
+    select {
       padding: 6px 8px;
       border: 1px solid var(--border);
       border-radius: 6px;
@@ -130,10 +130,16 @@
       background: var(--bg-card);
       color: var(--text-primary);
       font-family: inherit;
-      width: 115px;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23606070' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 6px center;
+      padding-right: 22px;
     }
 
-    input[type="date"]:focus {
+    select:focus {
       outline: none;
       border-color: var(--accent);
     }
@@ -506,7 +512,7 @@
       </div>
     </div>
     <div class="controls">
-      <input type="date" id="dateInput">
+      <select id="dateSelect"></select>
       <button id="searchBtn">検索</button>
     </div>
   </header>
@@ -519,7 +525,7 @@
   </main>
 
   <script>
-    const dateInput = document.getElementById('dateInput');
+    const dateSelect = document.getElementById('dateSelect');
     const searchBtn = document.getElementById('searchBtn');
     const lastUpdatedEl = document.getElementById('lastUpdated');
     const availableOnlyToggle = document.getElementById('availableOnlyToggle');
@@ -532,15 +538,30 @@
     // 空きのみ表示フラグ（デフォルトON）
     let showAvailableOnly = true;
 
-    // 今日の日付をデフォルトに設定
-    const today = new Date().toISOString().split('T')[0];
-    dateInput.value = today;
-    dateInput.min = today;
+    // 曜日名
+    const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
 
-    // 7日後まで選択可能
-    const maxDate = new Date();
-    maxDate.setDate(maxDate.getDate() + 7);
-    dateInput.max = maxDate.toISOString().split('T')[0];
+    // 日付セレクトボックスを生成（7日分）
+    function initDateSelect() {
+      const today = new Date();
+      for (let i = 0; i < 7; i++) {
+        const date = new Date(today);
+        date.setDate(today.getDate() + i);
+        const value = date.toISOString().split('T')[0];
+        const month = date.getMonth() + 1;
+        const day = date.getDate();
+        const dayName = dayNames[date.getDay()];
+        const label = `${month}/${day}(${dayName})`;
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = label;
+        dateSelect.appendChild(option);
+      }
+    }
+    initDateSelect();
+
+    // 今日の日付
+    const today = new Date().toISOString().split('T')[0];
 
     // 料金データを取得
     async function fetchPricing() {
@@ -578,7 +599,7 @@
 
     // 選択日が週末かどうか
     function isSelectedDateWeekend() {
-      const date = new Date(dateInput.value);
+      const date = new Date(dateSelect.value);
       const day = date.getDay();
       return day === 0 || day === 6; // 日曜=0, 土曜=6
     }
@@ -829,11 +850,11 @@
 
     // イベントリスナー
     searchBtn.addEventListener('click', () => {
-      fetchAvailability(dateInput.value);
+      fetchAvailability(dateSelect.value);
     });
 
-    dateInput.addEventListener('change', () => {
-      fetchAvailability(dateInput.value);
+    dateSelect.addEventListener('change', () => {
+      fetchAvailability(dateSelect.value);
     });
 
     // 初期読み込み（料金データを先に取得）
