@@ -169,6 +169,42 @@
       padding-right: 20px;
     }
 
+    .time-presets {
+      display: flex;
+      gap: 4px;
+      margin-left: 8px;
+    }
+
+    .preset-btn {
+      padding: 3px 8px;
+      font-size: 11px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .preset-btn:hover {
+      border-color: var(--accent);
+      color: var(--text-primary);
+    }
+
+    .preset-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+
+    .sub-header {
+      background: var(--bg-secondary);
+      padding: 4px 12px;
+      font-size: 0.6rem;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+    }
+
     button {
       padding: 6px 12px;
       border: none;
@@ -530,19 +566,23 @@
   <header>
     <div class="header-left">
       <h1>福岡サウナ空き状況</h1>
-      <span class="last-updated" id="lastUpdated">更新: -</span>
     </div>
     <div class="header-right">
       <div class="toggle-container">
         <span class="toggle-label">空きのみ</span>
         <div class="toggle-switch active" id="availableOnlyToggle"></div>
       </div>
-      <select id="dateSelect"></select>
     </div>
   </header>
 
+  <div class="sub-header">
+    <span id="lastUpdated">更新: -</span>
+  </div>
+
   <div class="filter-bar">
-    <span class="filter-label">時間帯</span>
+    <select id="dateSelect"></select>
+    <span class="filter-separator">|</span>
+    <span class="filter-label">時間</span>
     <select id="startHour">
       <option value="">開始</option>
       <option value="8">8時</option>
@@ -590,6 +630,11 @@
       <option value="31">翌7時</option>
       <option value="32">翌8時</option>
     </select>
+    <div class="time-presets">
+      <button class="preset-btn" data-start="8" data-end="12">朝</button>
+      <button class="preset-btn" data-start="12" data-end="18">昼</button>
+      <button class="preset-btn" data-start="18" data-end="24">夜</button>
+    </div>
   </div>
 
   <main class="facilities" id="facilities">
@@ -971,6 +1016,7 @@
     startHourSelect.addEventListener('change', () => {
       const val = startHourSelect.value;
       filterStartHour = val === '' ? null : parseInt(val);
+      updatePresetButtons();
       if (currentData) {
         renderFacilities(currentData);
       }
@@ -979,10 +1025,47 @@
     endHourSelect.addEventListener('change', () => {
       const val = endHourSelect.value;
       filterEndHour = val === '' ? null : parseInt(val);
+      updatePresetButtons();
       if (currentData) {
         renderFacilities(currentData);
       }
     });
+
+    // 時間帯プリセットボタン
+    const presetBtns = document.querySelectorAll('.preset-btn');
+    presetBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const start = parseInt(btn.dataset.start);
+        const end = parseInt(btn.dataset.end);
+
+        // 同じプリセットをクリックした場合はリセット
+        if (filterStartHour === start && filterEndHour === end) {
+          filterStartHour = null;
+          filterEndHour = null;
+          startHourSelect.value = '';
+          endHourSelect.value = '';
+        } else {
+          filterStartHour = start;
+          filterEndHour = end;
+          startHourSelect.value = start;
+          endHourSelect.value = end;
+        }
+
+        updatePresetButtons();
+        if (currentData) {
+          renderFacilities(currentData);
+        }
+      });
+    });
+
+    // プリセットボタンのアクティブ状態を更新
+    function updatePresetButtons() {
+      presetBtns.forEach(btn => {
+        const start = parseInt(btn.dataset.start);
+        const end = parseInt(btn.dataset.end);
+        btn.classList.toggle('active', filterStartHour === start && filterEndHour === end);
+      });
+    }
 
     // 日付変更時にデータ取得
     dateSelect.addEventListener('change', () => {
