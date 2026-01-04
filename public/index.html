@@ -603,6 +603,16 @@
   <div class="filter-bar">
     <select id="dateSelect"></select>
     <span class="filter-separator">|</span>
+    <select id="guestCount">
+      <option value="1">1名</option>
+      <option value="2" selected>2名</option>
+      <option value="3">3名</option>
+      <option value="4">4名</option>
+      <option value="5">5名</option>
+      <option value="6">6名</option>
+      <option value="7">7名</option>
+    </select>
+    <span class="filter-separator">|</span>
     <span class="filter-label">時間</span>
     <select id="startHour">
       <option value="">開始</option>
@@ -673,6 +683,7 @@
     const facilitiesContainer = document.getElementById('facilities');
     const startHourSelect = document.getElementById('startHour');
     const endHourSelect = document.getElementById('endHour');
+    const guestCountSelect = document.getElementById('guestCount');
 
     // 料金データ（グローバル）
     let pricingData = null;
@@ -683,9 +694,113 @@
     // 時間帯フィルター
     let filterStartHour = null;
     let filterEndHour = null;
+    // 人数（デフォルト2名）
+    let guestCount = 2;
 
     // 曜日名
     const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+
+    // 人数別料金計算データ
+    const guestPricing = {
+      // OOO
+      'サンカク': { capacity: 2, base100: { weekday: 4500, weekend: 4500 }, base120: { weekday: 6000, weekend: 6000 }, additional: 2500 },
+      'マル': { capacity: 4, base100: { weekday: 5000, weekend: 5000 }, base120: { weekday: 6500, weekend: 6500 }, additional: 2500 },
+      'シカク': { capacity: 6, base120: { weekday: 7000, weekend: 9000 }, additional: 3000 },
+      // GIRAFFE
+      '「陰」静の陰影': { capacity: 4, base: 7700, additional: 3300, nightBase: 12100, nightAdditional: 5500 },
+      '「陽」光の陽彩': { capacity: 7, base: 6600, additional: 3300, nightBase: 11000, nightAdditional: 5500 },
+      '和の静寂': { capacity: 4, base: 5500, additional: 2200 },
+      '温冷交互': { capacity: 4, base: 5500, additional: 2200 },
+      // BASE（定員2名、人数・曜日別料金）
+      'BASE': {
+        capacity: 2,
+        prices: {
+          1: { weekday: { 80: 5000, 100: 5800, 120: 6500, 150: 7500 }, weekend: { 80: 5300, 100: 6100, 120: 6800, 150: 7800 } },
+          2: { weekday: { 80: 7800, 100: 9100, 120: 10300, 150: 12100 }, weekend: { 80: 8300, 100: 9600, 120: 10800, 150: 12600 } }
+        }
+      }
+    };
+
+    // 部屋名から料金計算キーを取得
+    function getPricingKey(roomName) {
+      if (roomName.includes('サンカク')) return 'サンカク';
+      if (roomName.includes('マル')) return 'マル';
+      if (roomName.includes('シカク')) return 'シカク';
+      if (roomName.includes('「陰」')) return '「陰」静の陰影';
+      if (roomName.includes('「陽」')) return '「陽」光の陽彩';
+      if (roomName.includes('和の静寂')) return '和の静寂';
+      if (roomName.includes('温冷交互')) return '温冷交互';
+      return null;
+    }
+
+    // 部屋の定員を取得
+    function getRoomCapacity(facilityName, roomName) {
+      // KUDOCHI, SAKURADO は変更なし（定員チェックしない）
+      if (facilityName.includes('KUDOCHI') || facilityName.includes('SAKURADO')) return 99;
+
+      // OOO
+      const pricingKey = getPricingKey(roomName);
+      if (pricingKey && guestPricing[pricingKey]) {
+        return guestPricing[pricingKey].capacity;
+      }
+
+      // BASE
+      if (facilityName.includes('BASE')) return guestPricing['BASE'].capacity;
+
+      // 部屋名から定員を抽出（定員N名）
+      const match = roomName.match(/定員(\d+)名/);
+      if (match) return parseInt(match[1]);
+
+      return 99; // デフォルトは制限なし
+    }
+
+    // 人数に応じた料金を計算
+    function calculatePrice(facilityName, roomName, guests, isWeekend, isNight = false) {
+      const pricingKey = getPricingKey(roomName);
+
+      // OOO
+      if (pricingKey === 'サンカク' || pricingKey === 'マル') {
+        const data = guestPricing[pricingKey];
+        // 100分/120分の範囲料金
+        const base100 = isWeekend ? data.base100.weekend : data.base100.weekday;
+        const base120 = isWeekend ? data.base120.weekend : data.base120.weekday;
+        const min = base100 + (guests > 1 ? (guests - 1) * data.additional : 0);
+        const max = base120 + (guests > 1 ? (guests - 1) * data.additional : 0);
+        return `¥${min.toLocaleString()}-${max.toLocaleString()}`;
+      }
+
+      if (pricingKey === 'シカク') {
+        const data = guestPricing[pricingKey];
+        const base = isWeekend ? data.base120.weekend : data.base120.weekday;
+        const price = base + (guests > 1 ? (guests - 1) * data.additional : 0);
+        return `¥${price.toLocaleString()}`;
+      }
+
+      // GIRAFFE
+      if (pricingKey && guestPricing[pricingKey] && guestPricing[pricingKey].base) {
+        const data = guestPricing[pricingKey];
+        if (isNight && data.nightBase) {
+          const price = data.nightBase + (guests > 1 ? (guests - 1) * data.nightAdditional : 0);
+          return `¥${price.toLocaleString()}`;
+        }
+        const price = data.base + (guests > 1 ? (guests - 1) * data.additional : 0);
+        return `¥${price.toLocaleString()}`;
+      }
+
+      // BASE
+      if (facilityName.includes('BASE')) {
+        const baseData = guestPricing['BASE'];
+        const guestKey = Math.min(guests, 2); // 最大2名
+        const dayType = isWeekend ? 'weekend' : 'weekday';
+        const prices = baseData.prices[guestKey][dayType];
+        // 時間帯の最小〜最大
+        const minPrice = prices[80];
+        const maxPrice = prices[150];
+        return `¥${minPrice.toLocaleString()}-${maxPrice.toLocaleString()}`;
+      }
+
+      return null; // 変更なし
+    }
 
     // 日付セレクトボックスを生成（7日分）
     function initDateSelect() {
@@ -794,20 +909,44 @@
     // 部屋一覧をレンダリング（GIRAFFE/KUDOCHIはグループ化）
     function renderRooms(facility) {
       const shouldGroup = facility.name.includes('GIRAFFE') || facility.name.includes('KUDOCHI');
+      const isWeekend = isSelectedDateWeekend();
+
+      // 定員チェックでフィルタリング（KUDOCHI/SAKURADOは除外しない）
+      const filteredRooms = facility.rooms.filter(room => {
+        const capacity = getRoomCapacity(facility.name, room.name);
+        return guestCount <= capacity;
+      });
+
+      if (filteredRooms.length === 0) {
+        return '<div class="no-slots">選択人数に対応する部屋がありません</div>';
+      }
 
       if (shouldGroup) {
         // GIRAFFE/KUDOCHIの場合: 同じ部屋名をグループ化（通常プラン＋ナイトパック）
-        const groups = groupRoomsByBaseName(facility.rooms);
+        const groups = groupRoomsByBaseName(filteredRooms);
         return Object.entries(groups).map(([baseName, variants]) => {
+          // グループ内の定員チェック（GIRAFFEのみ）
+          if (facility.name.includes('GIRAFFE')) {
+            const capacity = getRoomCapacity(facility.name, variants[0].name);
+            if (guestCount > capacity) return '';
+          }
+
           return `
             <div class="room room-grouped">
               <div class="room-header">
                 <span class="room-name">${baseName}</span>
               </div>
-              ${variants.map((v, idx) => `
+              ${variants.map((v, idx) => {
+                // GIRAFFEの人数別料金計算
+                let priceDisplay = v.formatted.price;
+                if (facility.name.includes('GIRAFFE')) {
+                  const calcPrice = calculatePrice(facility.name, v.name, guestCount, isWeekend, v.isNight);
+                  if (calcPrice) priceDisplay = calcPrice;
+                }
+                return `
                 <div class="room-variant${idx > 0 ? ' variant-sub' : ''}">
                   <div class="variant-meta">
-                    ${v.formatted.price ? '<span class="room-price">' + v.formatted.price + '</span>' : ''}
+                    ${priceDisplay ? '<span class="room-price">' + priceDisplay + '</span>' : ''}
                     ${v.formatted.time ? '<span class="time-label' + (v.isNight ? ' night' : '') + '">' + v.formatted.time + '</span>' : ''}
                     ${v.formatted.capacity ? '<span class="capacity-label">' + v.formatted.capacity + '人</span>' : ''}
                   </div>
@@ -818,20 +957,25 @@
                     }
                   </div>
                 </div>
-              `).join('')}
+              `}).join('')}
             </div>
           `;
         }).join('');
       } else {
         // 他の施設: 従来のレンダリング
-        return facility.rooms.map(room => {
+        return filteredRooms.map(room => {
           const formatted = formatRoomName(room.name);
+          // 人数別料金計算（OOO, BASE）
+          let priceDisplay = formatted.price;
+          const calcPrice = calculatePrice(facility.name, room.name, guestCount, isWeekend);
+          if (calcPrice) priceDisplay = calcPrice;
+
           return `
             <div class="room">
               <div class="room-header">
                 <span class="room-name">${formatted.name}</span>
                 <div class="room-meta">
-                  ${formatted.price ? '<span class="room-price">' + formatted.price + '</span>' : ''}
+                  ${priceDisplay ? '<span class="room-price">' + priceDisplay + '</span>' : ''}
                   ${formatted.time ? '<span class="time-label' + (formatted.time === 'night' ? ' night' : '') + '">' + formatted.time + '</span>' : ''}
                   ${formatted.capacity ? '<span class="capacity-label">' + formatted.capacity + '人</span>' : ''}
                 </div>
@@ -1162,6 +1306,14 @@
     // 日付変更時にデータ取得
     dateSelect.addEventListener('change', () => {
       fetchAvailability(dateSelect.value);
+    });
+
+    // 人数変更時に再描画
+    guestCountSelect.addEventListener('change', () => {
+      guestCount = parseInt(guestCountSelect.value);
+      if (currentData) {
+        renderFacilities(currentData);
+      }
     });
 
     // 初期読み込み（料金データを先に取得）
