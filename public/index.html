@@ -116,12 +116,6 @@
       background: var(--success);
     }
 
-    .controls {
-      display: flex;
-      gap: 6px;
-      align-items: center;
-    }
-
     select {
       padding: 6px 8px;
       border: 1px solid var(--border);
@@ -511,10 +505,7 @@
         <div class="toggle-switch active" id="availableOnlyToggle"></div>
       </div>
     </div>
-    <div class="controls">
-      <select id="dateSelect"></select>
-      <button id="searchBtn">検索</button>
-    </div>
+    <select id="dateSelect"></select>
   </header>
 
   <main class="facilities" id="facilities">
@@ -526,7 +517,6 @@
 
   <script>
     const dateSelect = document.getElementById('dateSelect');
-    const searchBtn = document.getElementById('searchBtn');
     const lastUpdatedEl = document.getElementById('lastUpdated');
     const availableOnlyToggle = document.getElementById('availableOnlyToggle');
     const facilitiesContainer = document.getElementById('facilities');
@@ -848,11 +838,7 @@
       }
     });
 
-    // イベントリスナー
-    searchBtn.addEventListener('click', () => {
-      fetchAvailability(dateSelect.value);
-    });
-
+    // 日付変更時にデータ取得
     dateSelect.addEventListener('change', () => {
       fetchAvailability(dateSelect.value);
     });
