@@ -12,8 +12,17 @@
 // 福岡中洲店の予約スケジュールURL
 const URL = 'https://kudochi-sauna.hacomono.jp/reserve/schedule/6/25';
 
-// 実際の部屋名
-const ROOM_NAMES = ['Silk', 'Orca', 'Gold', 'Club', 'Grove', 'Oasis', 'Eden'];
+// 部屋名と定員情報
+const ROOM_INFO = {
+  'Silk': 'Silk（定員2名/120分）',
+  'Orca': 'Orca（定員2名/120分）',
+  'Gold': 'Gold（定員2名/120分）',
+  'Club': 'Club（定員2名/120分）',
+  'Grove': 'Grove（定員2名/120分）',
+  'Oasis': 'Oasis（定員4名/120分）',
+  'Eden': 'Eden（定員6名/120分）'
+};
+const ROOM_NAMES = Object.keys(ROOM_INFO);
 
 async function scrape(browser) {
   const page = await browser.newPage();
@@ -124,7 +133,8 @@ async function scrape(browser) {
       for (const room of ROOM_NAMES) {
         // 時間をソート
         const slots = dayData.slots[room] || [];
-        result.dates[dateStr][room] = slots.sort((a, b) => {
+        const displayName = ROOM_INFO[room] || room;
+        result.dates[dateStr][displayName] = slots.sort((a, b) => {
           const [aH, aM] = a.split(':').map(Number);
           const [bH, bM] = b.split(':').map(Number);
           return (aH * 60 + aM) - (bH * 60 + bM);
