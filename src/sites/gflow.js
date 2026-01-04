@@ -11,8 +11,8 @@ const URL = 'https://sw.gflow.cloud/ooo-fukuoka/calendar_open';
 
 // 統一フォーマット：部屋名（時間/定員）価格
 const ROOMS = [
-  { name: 'サンカク（100分/定員2名）¥4,500-8,500', selector: '.sankaku-h1', keyword: 'サンカク' },
-  { name: 'マル（100分/定員3名）¥5,000-11,500', selector: '.prime-h1', keyword: 'マル' },
+  { name: 'サンカク（100分/120分/定員2名）¥4,500-8,500', selector: '.sankaku-h1', keyword: 'サンカク' },
+  { name: 'マル（100分/120分/定員3名）¥5,000-11,500', selector: '.prime-h1', keyword: 'マル' },
   { name: 'シカク（120分/定員4名）¥7,000-18,000', selector: '.vip-h1', keyword: 'シカク' }
 ];
 
