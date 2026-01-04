@@ -338,6 +338,24 @@
       font-size: 0.85rem;
     }
 
+    .time-label {
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      border: 1px solid var(--border);
+    }
+
+    .capacity-icon {
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+    }
+
     .link-only {
       background: rgba(100, 149, 237, 0.1);
       border: 1px solid rgba(100, 149, 237, 0.2);
@@ -507,10 +525,23 @@
       return keyMap[name] || null;
     }
 
-    // 部屋名の価格部分をオレンジ色でフォーマット
+    // 部屋名をフォーマット（時間ラベル化、定員アイコン化、価格オレンジ）
     function formatRoomName(name) {
-      // ¥から始まる価格部分をオレンジ色のspanで囲む
-      return name.replace(/(¥[\d,]+[〜～]?[¥\d,]*[＋+]?[¥\d,／名]*)/g, '<span style="color:var(--accent)">$1</span>');
+      // パターン: 部屋名（120分/定員2名）¥価格
+      // → 部屋名 [120分] 👤2 ¥価格
+
+      let result = name;
+
+      // 時間と定員を抽出してフォーマット
+      // パターン1: （120分/定員2名）
+      result = result.replace(/（(\d+)分\/定員(\d+)名）/g, (match, minutes, capacity) => {
+        return ' <span class="time-label">' + minutes + '分</span> <span class="capacity-icon">👤' + capacity + '</span> ';
+      });
+
+      // 価格部分をオレンジ色に
+      result = result.replace(/(¥[\d,]+[〜～]?[¥\d,]*[＋+]?[¥\d,／名]*)/g, '<span style="color:var(--accent)">$1</span>');
+
+      return result;
     }
 
     // 施設の料金レンジを取得
