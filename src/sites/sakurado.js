@@ -10,14 +10,14 @@
 const URL = 'https://sauna-sakurado.spa/reservation/';
 
 // 部屋名と定員・時間・価格情報（税込価格）
-// 統一フォーマット：部屋名（時間/定員）価格
+// 統一フォーマット：部屋名（時間/定員）価格レンジ（平日-土日祝）
 const ROOM_INFO = {
-  '2-A': { display: '2-A（140分/定員6名）¥49,203', capacity: 6, minutes: 140, price: 49203 },
-  '2-B': { display: '2-B（140分/定員6名）¥42,945', capacity: 6, minutes: 140, price: 42945 },
-  '3-C': { display: '3-C（125分/定員4名）¥18,480', capacity: 4, minutes: 125, price: 18480 },
-  '3-D': { display: '3-D（125分/定員2名）¥9,450', capacity: 2, minutes: 125, price: 9450 },
-  '3-E': { display: '3-E（135分/定員6名）¥25,987', capacity: 6, minutes: 135, price: 25987 },
-  '3-F': { display: '3-F（95分/定員4名）¥16,170', capacity: 4, minutes: 95, price: 16170 }
+  '2-A': { display: '2-A（140分/定員6名）¥46,860-49,203', capacity: 6, minutes: 140, weekday: 46860, weekend: 49203 },
+  '2-B': { display: '2-B（140分/定員6名）¥40,900-42,945', capacity: 6, minutes: 140, weekday: 40900, weekend: 42945 },
+  '3-C': { display: '3-C（125分/定員4名）¥17,600-18,480', capacity: 4, minutes: 125, weekday: 17600, weekend: 18480 },
+  '3-D': { display: '3-D（125分/定員2名）¥9,000-9,450', capacity: 2, minutes: 125, weekday: 9000, weekend: 9450 },
+  '3-E': { display: '3-E（135分/定員6名）¥24,750-25,987', capacity: 6, minutes: 135, weekday: 24750, weekend: 25987 },
+  '3-F': { display: '3-F（95分/定員4名）¥15,400-16,170', capacity: 4, minutes: 95, weekday: 15400, weekend: 16170 }
 };
 const ROOM_NAMES = Object.keys(ROOM_INFO);
 
