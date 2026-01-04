@@ -92,14 +92,16 @@ async function scrapeCalendarWithPuppeteer(page) {
           // 日付をYYYY-MM-DD形式に変換
           const dateStr = targetGroup; // すでにYYYY-MM-DD形式
 
-          // 時間を開始時間のみに変換（09:30～11:30 → 9:30）
-          const startTime = time.split('～')[0].replace(/^0/, '');
+          // 時間をそのまま使用（09:30～11:30形式）
+          // 先頭の0を削除して統一（09:30→9:30）
+          const timeParts = time.split('～');
+          const timeRange = timeParts[0].replace(/^0/, '') + '〜' + timeParts[1].replace(/^0/, '');
 
           if (!result[dateStr]) {
             result[dateStr] = [];
           }
-          if (!result[dateStr].includes(startTime)) {
-            result[dateStr].push(startTime);
+          if (!result[dateStr].includes(timeRange)) {
+            result[dateStr].push(timeRange);
           }
         }
       });

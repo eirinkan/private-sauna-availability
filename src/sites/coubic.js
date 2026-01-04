@@ -12,13 +12,16 @@
 const BOOKING_URL = 'https://coubic.com/base-private-sauna/3957380/book';
 
 // コース種別（表示用）
-const COURSE_NAMES = ['80分コース'];
+const COURSE_NAMES = ['120分コース'];
 
 // 今日が平日かどうか判定
 function isWeekday(date) {
   const day = date.getDay();
   return day >= 1 && day <= 5; // 月〜金
 }
+
+// プラン利用時間（分）
+const PLAN_DURATION = 120;
 
 async function scrape(browser) {
   const page = await browser.newPage();
@@ -33,7 +36,7 @@ async function scrape(browser) {
     const today = new Date();
 
     // 今日が平日か土日かを判定して適切なプランを選択
-    const targetPlan = isWeekday(today) ? '80分1名様(平日)' : '80分1名様(土曜・日曜・祭日)';
+    const targetPlan = isWeekday(today) ? '120分1名様(平日)' : '120分1名様(土曜・日曜・祭日)';
 
     // 1. メニュー選択ボタンをクリック
     // 「選択してください」テキストを含むボタンをPuppeteerネイティブでクリック
@@ -237,7 +240,23 @@ async function scrape(browser) {
 
         const pad = function(n) { return n < 10 ? '0' + n : '' + n; };
         const dateStr = jstYear + '-' + pad(jstMonth) + '-' + pad(jstDay);
-        const timeStr = pad(jstHour) + ':' + utcMin;
+
+        // 開始時間
+        const startHour = jstHour;
+        const startMin = parseInt(utcMin);
+
+        // 終了時間（120分後）
+        let endMin = startMin + 120;
+        let endHour = startHour;
+        while (endMin >= 60) {
+          endMin = endMin - 60;
+          endHour = endHour + 1;
+        }
+        if (endHour >= 24) {
+          endHour = endHour - 24;
+        }
+
+        const timeStr = pad(startHour) + ':' + pad(startMin) + '〜' + pad(endHour) + ':' + pad(endMin);
 
         if (!availableSlots[dateStr]) {
           availableSlots[dateStr] = [];

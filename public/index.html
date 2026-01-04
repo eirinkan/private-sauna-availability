@@ -190,18 +190,38 @@
       opacity: 1;
     }
 
-    .map-link {
+    .map-btn {
+      background: var(--bg-secondary);
+      border: 1px solid var(--success);
       color: var(--success);
+      padding: 4px 10px;
+      font-size: 0.75rem;
+      border-radius: 6px;
       text-decoration: none;
-      font-size: 0.8rem;
-      font-weight: 500;
-      opacity: 0.8;
-      transition: opacity 0.2s;
-      margin-right: 8px;
+      font-weight: 600;
+      margin-right: 6px;
+      transition: all 0.2s;
     }
 
-    .map-link:hover {
-      opacity: 1;
+    .map-btn:hover {
+      background: var(--success);
+      color: var(--bg-primary);
+    }
+
+    .reserve-btn {
+      background: var(--accent);
+      border: none;
+      color: white;
+      padding: 4px 12px;
+      font-size: 0.75rem;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .reserve-btn:hover {
+      opacity: 0.9;
     }
 
     .facility-content {
@@ -598,8 +618,8 @@
             <div>
               ${priceRange ? '<span class="price-range">' + priceRange + '</span>' : ''}
               <button class="pricing-toggle" onclick="togglePricing('${facilityKey}')">詳細</button>
-              ${facility.mapUrl ? '<a href="' + facility.mapUrl + '" target="_blank" class="map-link">📍</a>' : ''}
-              <a href="${facility.url}" target="_blank" class="facility-link">予約 →</a>
+              ${facility.mapUrl ? '<a href="' + facility.mapUrl + '" target="_blank" class="map-btn">MAP</a>' : ''}
+              <a href="${facility.url}" target="_blank" class="reserve-btn">予約</a>
             </div>
           </div>
           <div class="facility-content">

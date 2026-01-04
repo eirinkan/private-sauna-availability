@@ -68,10 +68,10 @@ async function scrape(browser) {
             const timeText = timeEl.textContent.trim(); // "15:30 - 17:00"
             const labelText = labelEl.textContent.trim(); // "Silk - 90分" or "【5時間パック】Silk"
 
-            // 開始時間を抽出（" - "で分割して最初の部分を取得）
+            // 時間をそのまま使用（開始〜終了形式）
             const timeParts = timeText.split(' - ');
             if (timeParts.length < 2) return;
-            const startTime = timeParts[0];
+            const timeRange = timeParts[0] + '〜' + timeParts[1]; // "15:30〜17:00"
 
             // 部屋名を抽出
             // パターン1: "Silk - 90分" → "Silk"
@@ -84,8 +84,8 @@ async function scrape(browser) {
               }
             }
 
-            if (roomName && !roomSlots[roomName].includes(startTime)) {
-              roomSlots[roomName].push(startTime);
+            if (roomName && !roomSlots[roomName].includes(timeRange)) {
+              roomSlots[roomName].push(timeRange);
             }
           }
         });

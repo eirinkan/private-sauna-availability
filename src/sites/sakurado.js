@@ -108,10 +108,11 @@ async function scrape(browser) {
           if (!hasAmber) return;
 
           const text = el.textContent;
-          const timeMatch = text.match(/(\d{2}:\d{2})/);
+          // "21:40¥49,20300:00" 形式から開始時間と終了時間を抽出
+          const timeMatch = text.match(/(\d{2}:\d{2}).*?(\d{2}:\d{2})/);
           if (!timeMatch) return;
 
-          const time = timeMatch[1];
+          const time = timeMatch[1] + '〜' + timeMatch[2]; // "21:40〜00:00"
           const rect = el.getBoundingClientRect();
           const elementCenterX = rect.x + rect.width / 2;
 

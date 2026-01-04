@@ -92,12 +92,12 @@ async function scrape(browser) {
               const cells = row.querySelectorAll('th, td');
               if (cells.length < 3) continue;
 
-              // 最初のセルから時間を取得
+              // 最初のセルから時間を取得（"08:00~09:40 100分" 形式）
               const firstCellText = cells[0].textContent;
-              const timeMatch = firstCellText.match(/(\d{2}:\d{2})/);
+              const timeMatch = firstCellText.match(/(\d{2}:\d{2})~(\d{2}:\d{2})/);
               if (!timeMatch) continue;
 
-              const startTime = timeMatch[1];
+              const timeRange = timeMatch[1] + '〜' + timeMatch[2]; // "08:00〜09:40"
 
               // 列インデックス1から各日付の空き状況をチェック
               // (index 0=時間, index 1以降=日付データ)
@@ -115,8 +115,8 @@ async function scrape(browser) {
                   if (!data[dateStr]) {
                     data[dateStr] = [];
                   }
-                  if (!data[dateStr].includes(startTime)) {
-                    data[dateStr].push(startTime);
+                  if (!data[dateStr].includes(timeRange)) {
+                    data[dateStr].push(timeRange);
                   }
                 }
               }
