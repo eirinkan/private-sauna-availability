@@ -39,6 +39,14 @@ const GIRAFFE_TENJIN_ROOMS = [
   {
     url: 'https://reserva.be/giraffe_minamitenjin/reserve?mode=service_staff&search_evt_no=4feJyzNLcwMAIAAzgBCw&ctg_no=5aeJwzMjQyMAQAAuoA9w',
     name: '温冷交互（120分/定員4名）¥5,500〜¥9,900'
+  },
+  {
+    url: 'https://reserva.be/giraffe_minamitenjin/reserve?mode=service_staff&search_evt_no=6aeJwzNDAxNTcGAAQsATU&ctg_no=05eJwzMjQ2NgIAAvQA_A',
+    name: '和の静寂ナイトパック（300分/定員4名）¥11,000'
+  },
+  {
+    url: 'https://reserva.be/giraffe_minamitenjin/reserve?mode=service_staff&search_evt_no=2eeJwzNDAxNTEEAAQkATA&ctg_no=05eJwzMjQ2NgIAAvQA_A',
+    name: '温冷交互ナイトパック（300分/定員4名）¥11,000'
   }
 ];
 
