@@ -844,13 +844,21 @@
       return null; // 変更なし
     }
 
+    // ローカル日付をYYYY-MM-DD形式で取得
+    function formatLocalDate(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
     // 日付セレクトボックスを生成（7日分）
     function initDateSelect() {
       const today = new Date();
       for (let i = 0; i < 7; i++) {
         const date = new Date(today);
         date.setDate(today.getDate() + i);
-        const value = date.toISOString().split('T')[0];
+        const value = formatLocalDate(date);
         const month = date.getMonth() + 1;
         const day = date.getDate();
         const dayName = dayNames[date.getDay()];
@@ -864,7 +872,7 @@
     initDateSelect();
 
     // 今日の日付
-    const today = new Date().toISOString().split('T')[0];
+    const today = formatLocalDate(new Date());
 
     // 料金データを取得
     async function fetchPricing() {
@@ -1001,7 +1009,7 @@
                   </div>
                   <div class="slots">
                     ${v.availableSlots && v.availableSlots.length > 0
-                      ? v.availableSlots.map(slot => '<span class="slot">' + formatTimeSlot(slot) + '</span>').join('')
+                      ? v.availableSlots.map(slot => '<span class="slot">' + formatTimeSlot(slot, v.isNight) + '</span>').join('')
                       : '<span class="no-slots">空きなし</span>'
                     }
                   </div>
@@ -1072,11 +1080,34 @@
     }
 
     // 時間スロットのフォーマット（24時以上を翌X:XXに変換）
-    function formatTimeSlot(slot) {
+    function formatTimeSlot(slot, isNightPack = false) {
       return slot.replace(/(\d{1,2}):(\d{2})〜(\d{1,2}):(\d{2})/, (match, h1, m1, h2, m2) => {
         const startHour = parseInt(h1);
         const endHour = parseInt(h2);
 
+        // ナイトパック（開始が24時以降、または開始が0-8時で終了も0-8時）の場合
+        const isNight = startHour >= 24 || (startHour >= 0 && startHour <= 8 && endHour <= 8);
+
+        if (isNight || isNightPack) {
+          // 選択中の日付から翌日を計算
+          const selectedDate = new Date(dateSelect.value);
+          const nextDay = new Date(selectedDate);
+          nextDay.setDate(nextDay.getDate() + 1);
+          const nextMonth = nextDay.getMonth() + 1;
+          const nextDate = nextDay.getDate();
+          const datePrefix = nextMonth + '/' + nextDate + ' ';
+
+          // 24時間表記を0-23に変換
+          const normalizedStartHour = startHour >= 24 ? startHour - 24 : startHour;
+          const normalizedEndHour = endHour >= 24 ? endHour - 24 : endHour;
+
+          const startStr = String(normalizedStartHour).padStart(2, '0') + ':' + m1;
+          const endStr = String(normalizedEndHour).padStart(2, '0') + ':' + m2;
+
+          return datePrefix + startStr + '〜' + endStr;
+        }
+
+        // 通常時間帯
         let startStr = startHour + ':' + m1;
         let endStr = endHour >= 24 ? '翌' + (endHour - 24) + ':' + m2 : endHour + ':' + m2;
 
@@ -1091,7 +1122,13 @@
       const startMatch = slot.match(/^(\d{1,2}):/);
       if (!startMatch) return true;
 
-      const slotStartHour = parseInt(startMatch[1]);
+      let slotStartHour = parseInt(startMatch[1]);
+
+      // 深夜帯フィルター（終了が24時を超える場合）で、スロット開始が0-8時の場合は24を足す
+      // 例: 深夜プリセット(23-32)で01:00は25として扱い、フィルター範囲内と判定
+      if (filterEndHour !== null && filterEndHour > 24 && slotStartHour >= 0 && slotStartHour < 9) {
+        slotStartHour += 24;
+      }
 
       if (filterStartHour !== null && slotStartHour < filterStartHour) return false;
       if (filterEndHour !== null && slotStartHour >= filterEndHour) return false;

@@ -149,59 +149,58 @@ async function scrape(browser) {
         // 時間枠のロードを待つ
         await new Promise(resolve => setTimeout(resolve, 3000));
 
-        // 時間枠を取得（.userselect-time__item input.timebox）
+        // 時間枠を取得
         const timeSlots = await page.evaluate(() => {
           const slots = [];
 
-          // RESERVA形式: input.timebox[data-time][data-vacancy="1"]
-          const timeboxInputs = document.querySelectorAll('.userselect-time__item input.timebox, input.timebox');
-          timeboxInputs.forEach(input => {
-            const time = input.dataset.time;
-            const vacancy = input.dataset.vacancy;
-            // vacancy="1" は空きあり
-            if (time && vacancy === '1') {
-              const formattedTime = time.replace('～', '〜');
-              if (!slots.includes(formattedTime)) {
-                slots.push(formattedTime);
+          // 方法1: 時間枠カードを探す（○マークがあるもの = 空きあり）
+          // スクリーンショットから: ①10:00~12:30 ¥9,900 ○ 形式
+          const allElements = document.querySelectorAll('label, div, button, span');
+          allElements.forEach(el => {
+            const text = el.textContent?.trim();
+            // 時間範囲を含み、○マークがある要素を探す
+            const timeMatch = text?.match(/(\d{1,2}:\d{2})[~〜～](\d{1,2}:\d{2})/);
+            if (timeMatch && text.includes('○')) {
+              const time = `${timeMatch[1]}〜${timeMatch[2]}`;
+              if (!slots.includes(time)) {
+                slots.push(time);
               }
             }
           });
 
-          // 代替: .item-label から時間を取得
+          // 方法2: RESERVA形式 input.timebox[data-vacancy="1"]
           if (slots.length === 0) {
-            const itemLabels = document.querySelectorAll('.userselect-time__item .item-label');
-            itemLabels.forEach(label => {
-              const parent = label.closest('.userselect-time__item');
-              const input = parent?.querySelector('input.timebox');
-              if (input?.dataset.vacancy === '1') {
-                const text = label.textContent?.trim();
-                const timeMatch = text?.match(/(\d{1,2}:\d{2})[~〜～](\d{1,2}:\d{2})/);
+            const timeboxInputs = document.querySelectorAll('input.timebox, input[type="radio"]');
+            timeboxInputs.forEach(input => {
+              const time = input.dataset.time || input.value;
+              const vacancy = input.dataset.vacancy;
+              const parent = input.closest('label, div');
+              const parentText = parent?.textContent || '';
+
+              // vacancy="1" または ○マークがあれば空きあり
+              if (time && (vacancy === '1' || parentText.includes('○'))) {
+                const timeMatch = time.match(/(\d{1,2}:\d{2})[~〜～](\d{1,2}:\d{2})/);
                 if (timeMatch) {
-                  const time = `${timeMatch[1]}〜${timeMatch[2]}`;
-                  if (!slots.includes(time)) {
-                    slots.push(time);
+                  const formattedTime = `${timeMatch[1]}〜${timeMatch[2]}`;
+                  if (!slots.includes(formattedTime)) {
+                    slots.push(formattedTime);
                   }
                 }
               }
             });
           }
 
-          // 代替: 一般的な時間ボタン/ラベル
+          // 方法3: label要素で○を含むものを探す
           if (slots.length === 0) {
-            const buttons = document.querySelectorAll('button, label, .time-slot');
-            buttons.forEach(btn => {
-              const text = btn.textContent?.trim();
+            const labels = document.querySelectorAll('label');
+            labels.forEach(label => {
+              const text = label.textContent?.trim();
               const timeMatch = text?.match(/(\d{1,2}:\d{2})[~〜～](\d{1,2}:\d{2})/);
-              if (timeMatch) {
-                // 空きありのスタイルを確認
-                const isDisabled = btn.classList.contains('disabled') ||
-                                   btn.classList.contains('unavailable') ||
-                                   btn.closest('.disabled');
-                if (!isDisabled) {
-                  const time = `${timeMatch[1]}〜${timeMatch[2]}`;
-                  if (!slots.includes(time)) {
-                    slots.push(time);
-                  }
+              // ○があり、×がない
+              if (timeMatch && text.includes('○') && !text.includes('×')) {
+                const time = `${timeMatch[1]}〜${timeMatch[2]}`;
+                if (!slots.includes(time)) {
+                  slots.push(time);
                 }
               }
             });

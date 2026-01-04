@@ -163,7 +163,15 @@ async function scrape(browser) {
         : roomInfo.displayName;
 
       for (const dateInfo of plan.dates) {
-        const dateStr = dateInfo.fullDate;
+        let dateStr = dateInfo.fullDate;
+
+        // ナイトパックの場合、日付を1日前にする（前日夜から翌朝のため）
+        // 例: 1/6の01:00〜08:30は、1/5の夜に開始するので1/5の空きとして表示
+        if (planInfo.isNight) {
+          const d = new Date(dateStr);
+          d.setDate(d.getDate() - 1);
+          dateStr = d.toISOString().split('T')[0];
+        }
 
         if (!result.dates[dateStr]) {
           result.dates[dateStr] = {};
