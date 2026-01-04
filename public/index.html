@@ -144,6 +144,31 @@
       border-color: var(--accent);
     }
 
+    .filter-bar {
+      background: var(--bg-secondary);
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .filter-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .filter-separator {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .filter-bar select {
+      font-size: 12px;
+      padding: 4px 6px;
+      padding-right: 20px;
+    }
+
     button {
       padding: 6px 12px;
       border: none;
@@ -516,6 +541,57 @@
     </div>
   </header>
 
+  <div class="filter-bar">
+    <span class="filter-label">時間帯</span>
+    <select id="startHour">
+      <option value="">開始</option>
+      <option value="8">8時</option>
+      <option value="9">9時</option>
+      <option value="10">10時</option>
+      <option value="11">11時</option>
+      <option value="12">12時</option>
+      <option value="13">13時</option>
+      <option value="14">14時</option>
+      <option value="15">15時</option>
+      <option value="16">16時</option>
+      <option value="17">17時</option>
+      <option value="18">18時</option>
+      <option value="19">19時</option>
+      <option value="20">20時</option>
+      <option value="21">21時</option>
+      <option value="22">22時</option>
+      <option value="23">23時</option>
+      <option value="24">24時</option>
+    </select>
+    <span class="filter-separator">〜</span>
+    <select id="endHour">
+      <option value="">終了</option>
+      <option value="10">10時</option>
+      <option value="11">11時</option>
+      <option value="12">12時</option>
+      <option value="13">13時</option>
+      <option value="14">14時</option>
+      <option value="15">15時</option>
+      <option value="16">16時</option>
+      <option value="17">17時</option>
+      <option value="18">18時</option>
+      <option value="19">19時</option>
+      <option value="20">20時</option>
+      <option value="21">21時</option>
+      <option value="22">22時</option>
+      <option value="23">23時</option>
+      <option value="24">24時</option>
+      <option value="25">翌1時</option>
+      <option value="26">翌2時</option>
+      <option value="27">翌3時</option>
+      <option value="28">翌4時</option>
+      <option value="29">翌5時</option>
+      <option value="30">翌6時</option>
+      <option value="31">翌7時</option>
+      <option value="32">翌8時</option>
+    </select>
+  </div>
+
   <main class="facilities" id="facilities">
     <div class="loading">
       <div class="spinner"></div>
@@ -528,6 +604,8 @@
     const lastUpdatedEl = document.getElementById('lastUpdated');
     const availableOnlyToggle = document.getElementById('availableOnlyToggle');
     const facilitiesContainer = document.getElementById('facilities');
+    const startHourSelect = document.getElementById('startHour');
+    const endHourSelect = document.getElementById('endHour');
 
     // 料金データ（グローバル）
     let pricingData = null;
@@ -535,6 +613,9 @@
     let currentData = null;
     // 空きのみ表示フラグ（デフォルトON）
     let showAvailableOnly = true;
+    // 時間帯フィルター
+    let filterStartHour = null;
+    let filterEndHour = null;
 
     // 曜日名
     const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
@@ -654,6 +735,21 @@
       });
     }
 
+    // 時間帯フィルター判定
+    function isSlotInTimeRange(slot) {
+      if (filterStartHour === null && filterEndHour === null) return true;
+
+      const startMatch = slot.match(/^(\d{1,2}):/);
+      if (!startMatch) return true;
+
+      const slotStartHour = parseInt(startMatch[1]);
+
+      if (filterStartHour !== null && slotStartHour < filterStartHour) return false;
+      if (filterEndHour !== null && slotStartHour >= filterEndHour) return false;
+
+      return true;
+    }
+
     // 施設の料金レンジを取得
     function getPriceRange(facilityKey) {
       if (!pricingData || !pricingData[facilityKey]) return '';
@@ -757,8 +853,20 @@
         return;
       }
 
-      // フィルタリング: 空きのみ表示モードの場合
-      let facilities = data.facilities;
+      // フィルタリング処理
+      let facilities = data.facilities.map(facility => {
+        if (facility.error || facility.linkOnly) return facility;
+
+        // 各部屋のスロットを時間帯でフィルタリング
+        const filteredRooms = (facility.rooms || []).map(room => {
+          const filteredSlots = (room.availableSlots || []).filter(isSlotInTimeRange);
+          return { ...room, availableSlots: filteredSlots };
+        });
+
+        return { ...facility, rooms: filteredRooms };
+      });
+
+      // 空きのみ表示モードの場合
       if (showAvailableOnly) {
         facilities = facilities.map(facility => {
           if (facility.error || facility.linkOnly) return facility;
@@ -854,6 +962,23 @@
     availableOnlyToggle.addEventListener('click', () => {
       showAvailableOnly = !showAvailableOnly;
       availableOnlyToggle.classList.toggle('active', showAvailableOnly);
+      if (currentData) {
+        renderFacilities(currentData);
+      }
+    });
+
+    // 時間帯フィルター変更
+    startHourSelect.addEventListener('change', () => {
+      const val = startHourSelect.value;
+      filterStartHour = val === '' ? null : parseInt(val);
+      if (currentData) {
+        renderFacilities(currentData);
+      }
+    });
+
+    endHourSelect.addEventListener('change', () => {
+      const val = endHourSelect.value;
+      filterEndHour = val === '' ? null : parseInt(val);
       if (currentData) {
         renderFacilities(currentData);
       }
