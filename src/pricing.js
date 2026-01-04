@@ -93,15 +93,15 @@ const PRICING = {
   sakurado: {
     name: 'SAUNA SAKURADO',
     url: 'https://sauna-sakurado.spa/',
-    note: '会員制（初回お試し可）、部屋により時間・料金が異なる',
+    note: '会員制（初回お試し可）、部屋により設備・料金が異なる',
     membershipFee: 22000, // 登録時のみ、年会費なし
     plans: [
-      { name: 'TSUBAKI（2名）- 125分', price: 9000, duration: 125, capacity: 2 },
-      { name: 'MOMIJI（2名）- 125分', price: 9000, duration: 125, capacity: 2 },
-      { name: 'BOTAN（4名）- 130分', price: 12000, duration: 130, capacity: 4 },
-      { name: 'SAKURA（4名）- 135分', price: 15000, duration: 135, capacity: 4 },
-      { name: 'MATSU（4名）- 140分', price: 18000, duration: 140, capacity: 4 },
-      { name: 'UME（6名）- 140分', price: 22000, duration: 140, capacity: 6 }
+      { name: '3-D（2名）- 125分', price: 9000, duration: 125, capacity: 2 },
+      { name: '3-F（4名）- 95分', price: 15400, duration: 95, capacity: 4 },
+      { name: '3-C（4名）- 125分', price: 17600, duration: 125, capacity: 4 },
+      { name: '3-E（6名）- 135分', price: 24750, duration: 135, capacity: 6 },
+      { name: '2-B（6名）- 140分', price: 40900, duration: 140, capacity: 6 },
+      { name: '2-A（6名）- 140分', price: 46860, duration: 140, capacity: 6 }
     ]
   }
 };

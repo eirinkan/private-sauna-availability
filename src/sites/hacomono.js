@@ -1,102 +1,128 @@
 /**
  * KUDOCHI福岡中洲 (hacomono) スクレイパー
- * URL: https://kudochi-sauna.hacomono.jp/
+ * URL: https://kudochi-sauna.hacomono.jp/reserve/schedule/6/25
  *
- * 店舗選択ページから「福岡中洲店」を選択する必要あり
- * 部屋タイプ: スタンダード(2名)、スーペリア(3名)、セミVIP(4名)、VIP(6名)
+ * 構造:
+ * - .dayクラスが14個（index 0-6: 日付ヘッダー、index 7-13: 実際のスケジュール）
+ * - .d_lesson要素が各スロット（disabled クラスで予約不可を判定）
+ * - .d_lesson .fs_2.mb_text: 時間（例: "15:30 - 17:00"）
+ * - .d_lesson .schedule-label: 部屋名（例: "Silk - 90分"）
  */
 
-const URL = 'https://kudochi-sauna.hacomono.jp/';
+// 福岡中洲店の予約スケジュールURL
+const URL = 'https://kudochi-sauna.hacomono.jp/reserve/schedule/6/25';
+
+// 実際の部屋名
+const ROOM_NAMES = ['Silk', 'Orca', 'Gold', 'Club', 'Grove', 'Oasis', 'Eden'];
 
 async function scrape(browser) {
   const page = await browser.newPage();
-  await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36');
-  await page.setViewport({ width: 1280, height: 800 });
+  await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+  await page.setViewport({ width: 1400, height: 900 });
 
   try {
     await page.goto(URL, { waitUntil: 'networkidle2', timeout: 60000 });
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    // SPAなので長めに待機
+    await new Promise(resolve => setTimeout(resolve, 8000));
 
-    // 福岡中洲店を選択
-    const clicked = await page.evaluate(() => {
-      const links = Array.from(document.querySelectorAll('a, button, div[onclick]'));
-      for (const link of links) {
-        if (link.textContent.includes('福岡中洲') || link.textContent.includes('FUKUOKANAKASU')) {
-          link.click();
-          return true;
+    // ページから全日付のデータを一括取得（DOM要素ベースの解析）
+    const allData = await page.evaluate((rooms) => {
+      const dayElements = document.querySelectorAll('.day');
+      const result = [];
+
+      // .day要素は14個：index 0-6は日付ヘッダー、index 7-13がスケジュールデータ
+      // 日付ヘッダー（index 0-6）から日付情報を取得
+      const dateHeaders = [];
+      for (let i = 0; i < 7 && i < dayElements.length; i++) {
+        const headerText = dayElements[i].textContent.trim();
+        // "1/3 (土) SilkOrca..." のようなテキストから日付部分を抽出
+        const match = headerText.match(/^(\d{1,2})\/(\d{1,2})\s*\([日月火水木金土]\)/);
+        if (match) {
+          dateHeaders.push({
+            month: parseInt(match[1]),
+            day: parseInt(match[2])
+          });
         }
       }
-      // テーブル内のリンクを探す
-      const rows = document.querySelectorAll('tr');
-      for (const row of rows) {
-        if (row.textContent.includes('福岡') || row.textContent.includes('FUKUOKA')) {
-          const clickable = row.querySelector('a, button');
-          if (clickable) {
-            clickable.click();
-            return true;
+
+      // スケジュールデータ（index 7-13）を解析
+      for (let i = 7; i < 14 && i < dayElements.length; i++) {
+        const dayIndex = i - 7; // 0-6
+        const dateInfo = dateHeaders[dayIndex];
+        if (!dateInfo) continue;
+
+        const dayEl = dayElements[i];
+        const roomSlots = {};
+        rooms.forEach(r => roomSlots[r] = []);
+
+        // 空きスロットのみ取得（disabled クラスがないもの）
+        const availableLessons = dayEl.querySelectorAll('.d_lesson:not(.disabled)');
+
+        availableLessons.forEach(lesson => {
+          // 時間を取得（.fs_2.mb_text 要素）
+          const timeEl = lesson.querySelector('.fs_2.mb_text');
+          // 部屋名を取得（.schedule-label 要素）
+          const labelEl = lesson.querySelector('.schedule-label');
+
+          if (timeEl && labelEl) {
+            const timeText = timeEl.textContent.trim(); // "15:30 - 17:00"
+            const labelText = labelEl.textContent.trim(); // "Silk - 90分" or "【5時間パック】Silk"
+
+            // 開始時間を抽出（" - "で分割して最初の部分を取得）
+            const timeParts = timeText.split(' - ');
+            if (timeParts.length < 2) return;
+            const startTime = timeParts[0];
+
+            // 部屋名を抽出
+            // パターン1: "Silk - 90分" → "Silk"
+            // パターン2: "【5時間パック】Silk" → "Silk"
+            let roomName = null;
+            for (const room of rooms) {
+              if (labelText.includes(room)) {
+                roomName = room;
+                break;
+              }
+            }
+
+            if (roomName && !roomSlots[roomName].includes(startTime)) {
+              roomSlots[roomName].push(startTime);
+            }
           }
-          row.click();
-          return true;
-        }
-      }
-      return false;
-    });
-
-    if (clicked) {
-      await new Promise(resolve => setTimeout(resolve, 5000));
-    }
-
-    const result = { dates: {} };
-
-    // スケジュールページを解析
-    const scheduleData = await page.evaluate(() => {
-      const data = {};
-
-      // カレンダーを探す
-      const calendar = document.querySelector('[class*="calendar"], [class*="schedule"], table');
-
-      // 日付セルを探す
-      const dateCells = Array.from(document.querySelectorAll('[class*="day"], td, th'))
-        .filter(el => {
-          const text = el.textContent.trim();
-          return /^\d{1,2}$/.test(text) || /\d{1,2}\/\d{1,2}/.test(text);
         });
 
-      // 予約可能枠を探す
-      const availableSlots = Array.from(document.querySelectorAll('[class*="jz"], [class*="available"], [class*="open"]'))
-        .filter(el => el.textContent.trim() !== '');
+        result.push({
+          month: dateInfo.month,
+          day: dateInfo.day,
+          slots: roomSlots
+        });
+      }
 
-      // 満員枠
-      const fullSlots = Array.from(document.querySelectorAll('[class*="full"], [class*="closed"]'));
+      return result;
+    }, ROOM_NAMES);
 
-      // ページ内容から情報を抽出
-      const bodyText = document.body.innerText;
+    // 結果を整形
+    const result = { dates: {} };
+    const now = new Date();
+    const currentYear = now.getFullYear();
 
-      // 時間枠パターンを検索
-      const timeMatches = bodyText.match(/\d{1,2}:\d{2}/g) || [];
+    for (const dayData of allData) {
+      // 年を決定（1月で現在が12月なら来年）
+      let year = currentYear;
+      if (dayData.month === 1 && now.getMonth() === 11) {
+        year = currentYear + 1;
+      }
 
-      return {
-        availableCount: availableSlots.length,
-        fullCount: fullSlots.length,
-        dateCount: dateCells.length,
-        times: [...new Set(timeMatches)].slice(0, 20),
-        bodyText: bodyText.substring(0, 3000)
-      };
-    });
-
-    // 簡易的に結果を構築（詳細な解析は要調整）
-    const today = new Date();
-    const roomTypes = ['スタンダード', 'スーペリア', 'セミVIP', 'VIP'];
-
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + i);
-      const dateStr = date.toISOString().split('T')[0];
-
+      const dateStr = `${year}-${String(dayData.month).padStart(2, '0')}-${String(dayData.day).padStart(2, '0')}`;
       result.dates[dateStr] = {};
-      for (const room of roomTypes) {
-        // 詳細な空き時間の取得は要調整
-        result.dates[dateStr][room] = scheduleData.availableCount > 0 ? scheduleData.times.slice(0, 5) : [];
+
+      for (const room of ROOM_NAMES) {
+        // 時間をソート
+        const slots = dayData.slots[room] || [];
+        result.dates[dateStr][room] = slots.sort((a, b) => {
+          const [aH, aM] = a.split(':').map(Number);
+          const [bH, bM] = b.split(':').map(Number);
+          return (aH * 60 + aM) - (bH * 60 + bM);
+        });
       }
     }
 

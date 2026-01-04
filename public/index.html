@@ -438,9 +438,15 @@
       const facility = pricingData[facilityKey];
       const isWeekend = isSelectedDateWeekend();
 
+      // 部屋番号を抽出（例: "2-A（最大6名/140分）" → "2-A"）
+      const roomNumber = roomName.match(/^[\d\w]+-[A-Z]/)?.[0] || roomName.split('（')[0];
+
       for (const plan of facility.plans) {
-        // 部屋名の一部がマッチするか確認
-        if (roomName.includes(plan.name) || plan.name.includes(roomName.split(' ')[0])) {
+        // プラン名から部屋番号を抽出
+        const planNumber = plan.name.match(/^[\d\w]+-[A-Z]/)?.[0] || plan.name.split('（')[0];
+
+        // 部屋番号でマッチするか、部屋名の一部が含まれるか確認
+        if (roomNumber === planNumber || roomName.includes(plan.name) || plan.name.includes(roomNumber)) {
           if (plan.weekday !== undefined) {
             return isWeekend ? plan.weekend : plan.weekday;
           }

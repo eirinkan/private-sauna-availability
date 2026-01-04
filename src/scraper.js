@@ -1,6 +1,10 @@
 const fs = require('fs');
 const path = require('path');
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+
+// Stealth pluginを有効化（ボット検出回避）
+puppeteer.use(StealthPlugin());
 
 // 各サイトのスクレイパー
 const sakurado = require('./sites/sakurado');
@@ -62,22 +66,13 @@ async function scrapeAll() {
       data.facilities.sakurado = { error: e.message };
     }
 
-    // GIRAFFE南天神 (RESERVA)
-    console.log('  - GIRAFFE南天神 スクレイピング中...');
+    // GIRAFFE (RESERVA) - 南天神・天神統合
+    console.log('  - GIRAFFE スクレイピング中...');
     try {
       data.facilities.giraffe = await reserva.scrape(browser);
     } catch (e) {
-      console.error('    GIRAFFE南天神 エラー:', e.message);
+      console.error('    GIRAFFE エラー:', e.message);
       data.facilities.giraffe = { error: e.message };
-    }
-
-    // GIRAFFE天神 (RESERVA)
-    console.log('  - GIRAFFE天神 スクレイピング中...');
-    try {
-      data.facilities.giraffeTenjin = await reserva.scrapeTenjinStore(browser);
-    } catch (e) {
-      console.error('    GIRAFFE天神 エラー:', e.message);
-      data.facilities.giraffeTenjin = { error: e.message };
     }
 
     // KUDOCHI (hacomono)
@@ -126,11 +121,10 @@ function getAvailability(date) {
   // 各施設のデータを整形
   const facilityInfo = [
     { key: 'sakurado', name: 'SAUNA SAKURADO', url: 'https://sauna-sakurado.spa/reservation/' },
-    { key: 'giraffe', name: 'GIRAFFE南天神', url: 'https://reserva.be/giraffe_minamitenjin' },
-    { key: 'giraffeTenjin', name: 'GIRAFFE天神', url: 'https://sauna-giraffe.com/tenjin' },
-    { key: 'kudochi', name: 'KUDOCHI福岡中洲', url: 'https://kudochi-sauna.hacomono.jp/' },
+    { key: 'giraffe', name: 'GIRAFFE', url: 'https://reserva.be/giraffe_minamitenjin' },
+    { key: 'kudochi', name: 'KUDOCHI福岡中洲', url: 'https://kudochi-sauna.hacomono.jp/reserve/schedule/6/25' },
     { key: 'saunaOoo', name: 'SAUNA OOO FUKUOKA', url: 'https://sw.gflow.cloud/ooo-fukuoka/calendar_open' },
-    { key: 'base', name: 'BASE Private sauna', url: 'https://coubic.com/base-private-sauna' }
+    { key: 'base', name: 'BASE Private sauna', url: 'https://coubic.com/base-private-sauna/3957380/book/course_type' }
   ];
 
   for (const info of facilityInfo) {

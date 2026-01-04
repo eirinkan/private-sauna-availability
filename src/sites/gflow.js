@@ -99,12 +99,12 @@ async function scrape(browser) {
 
               const startTime = timeMatch[1];
 
-              // 列インデックス2から各日付の空き状況をチェック
-              // (index 0=時間, index 1=空白スペーサー, index 2以降=日付)
-              for (let i = 2; i < cells.length && i - 2 < dates.length; i++) {
+              // 列インデックス1から各日付の空き状況をチェック
+              // (index 0=時間, index 1以降=日付データ)
+              for (let i = 1; i < cells.length && i - 1 < dates.length; i++) {
                 const cell = cells[i];
                 const cellText = cell.textContent.trim();
-                const dateStr = dates[i - 2];
+                const dateStr = dates[i - 1];
 
                 if (!dateStr) continue;
 
