@@ -14,9 +14,9 @@ const URL = 'https://kudochi-sauna.hacomono.jp/reserve/schedule/6/25';
 
 // 部屋名と定員情報
 const ROOM_INFO = {
-  'Silk': 'Silk（定員2名/120分）',
-  'Orca': 'Orca（定員2名/120分）',
-  'Gold': 'Gold（定員2名/120分）',
+  'Silk': 'Silk（定員2名/90分）',
+  'Orca': 'Orca（定員2名/90分）',
+  'Gold': 'Gold（定員2名/90分）',
   'Club': 'Club（定員2名/120分）',
   'Grove': 'Grove（定員2名/120分）',
   'Oasis': 'Oasis（定員4名/120分）',
@@ -69,8 +69,12 @@ async function scrape(browser) {
 
         availableLessons.forEach(lesson => {
           // FULLテキストがある場合は予約不可としてスキップ
-          const lessonText = lesson.textContent || '';
-          if (lessonText.includes('FULL') || lessonText.includes('満席') || lessonText.includes('×')) {
+          const lessonText = (lesson.textContent || '').toUpperCase();
+          const lessonHtml = (lesson.innerHTML || '').toUpperCase();
+          // テキスト内容とHTML内容の両方をチェック
+          if (lessonText.includes('FULL') || lessonHtml.includes('FULL') ||
+              lessonText.includes('満席') || lessonText.includes('×') ||
+              lesson.classList.contains('full') || lesson.classList.contains('is-full')) {
             return;
           }
 
