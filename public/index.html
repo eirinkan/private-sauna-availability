@@ -51,25 +51,80 @@
     }
 
     header h1 {
-      font-size: 0.85rem;
+      font-size: 0.9rem;
       font-weight: 600;
       letter-spacing: 0.02em;
       color: var(--text-primary);
       white-space: nowrap;
     }
 
-    header h1 small {
-      display: block;
-      font-size: 0.65rem;
-      font-weight: 400;
-      color: var(--text-muted);
-      letter-spacing: 0.05em;
-    }
-
     .controls {
       display: flex;
       gap: 8px;
       align-items: center;
+    }
+
+    .header-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+    }
+
+    .header-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .last-updated {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+    }
+
+    .toggle-container {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .toggle-label {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 36px;
+      height: 20px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 14px;
+      height: 14px;
+      background: var(--text-muted);
+      border-radius: 50%;
+      transition: all 0.2s ease;
+    }
+
+    .toggle-switch.active {
+      background: var(--success-bg);
+      border-color: var(--success);
+    }
+
+    .toggle-switch.active::after {
+      left: 18px;
+      background: var(--success);
     }
 
     input[type="date"] {
@@ -112,15 +167,6 @@
     button:disabled {
       opacity: 0.5;
       cursor: not-allowed;
-    }
-
-    .status-bar {
-      background: var(--bg-secondary);
-      color: var(--text-muted);
-      padding: 10px 15px;
-      font-size: 12px;
-      text-align: center;
-      border-bottom: 1px solid var(--border);
     }
 
     .loading {
@@ -456,16 +502,21 @@
 </head>
 <body>
   <header>
-    <h1>福岡サウナ<small>空き状況</small></h1>
-    <div class="controls">
-      <input type="date" id="dateInput">
-      <button id="searchBtn">検索</button>
+    <h1>福岡サウナ空き状況</h1>
+    <div class="header-right">
+      <div class="controls">
+        <input type="date" id="dateInput">
+        <button id="searchBtn">検索</button>
+      </div>
+      <div class="header-meta">
+        <span class="last-updated" id="lastUpdated">更新: -</span>
+        <div class="toggle-container">
+          <span class="toggle-label">空きのみ</span>
+          <div class="toggle-switch active" id="availableOnlyToggle"></div>
+        </div>
+      </div>
     </div>
   </header>
-
-  <div class="status-bar" id="statusBar">
-    最終更新: -
-  </div>
 
   <main class="facilities" id="facilities">
     <div class="loading">
@@ -477,11 +528,16 @@
   <script>
     const dateInput = document.getElementById('dateInput');
     const searchBtn = document.getElementById('searchBtn');
-    const statusBar = document.getElementById('statusBar');
+    const lastUpdatedEl = document.getElementById('lastUpdated');
+    const availableOnlyToggle = document.getElementById('availableOnlyToggle');
     const facilitiesContainer = document.getElementById('facilities');
 
     // 料金データ（グローバル）
     let pricingData = null;
+    // 現在の空き状況データ
+    let currentData = null;
+    // 空きのみ表示フラグ（デフォルトON）
+    let showAvailableOnly = true;
 
     // 今日の日付をデフォルトに設定
     const today = new Date().toISOString().split('T')[0];
@@ -563,8 +619,8 @@
         roomName = name.replace(/（(?:[\d分\/]+|night)\/定員\d+名）/, '');
       }
 
-      // 価格を抽出
-      const priceMatch = roomName.match(/(¥[\d,]+[〜～]?[¥\d,]*[＋+]?[¥\d,／名]*)/);
+      // 価格を抽出（¥6,000-8,000 形式に対応）
+      const priceMatch = roomName.match(/(¥[\d,]+(?:[-〜～][\d,]+)?)/);
       if (priceMatch) {
         price = priceMatch[1];
         roomName = roomName.replace(priceMatch[0], '').trim();
@@ -653,6 +709,7 @@
       try {
         const res = await fetch(`/api/availability?date=${date}`);
         const data = await res.json();
+        currentData = data;
         renderFacilities(data);
         updateStatus(data.lastUpdated);
       } catch (error) {
@@ -675,7 +732,30 @@
         return;
       }
 
-      facilitiesContainer.innerHTML = data.facilities.map(facility => {
+      // フィルタリング: 空きのみ表示モードの場合
+      let facilities = data.facilities;
+      if (showAvailableOnly) {
+        facilities = facilities.map(facility => {
+          if (facility.error || facility.linkOnly) return facility;
+          const availableRooms = (facility.rooms || []).filter(room =>
+            room.availableSlots && room.availableSlots.length > 0
+          );
+          return { ...facility, rooms: availableRooms };
+        }).filter(facility =>
+          facility.error || facility.linkOnly || (facility.rooms && facility.rooms.length > 0)
+        );
+      }
+
+      if (facilities.length === 0) {
+        facilitiesContainer.innerHTML = `
+          <div class="loading">
+            <p>空きのある部屋がありません</p>
+          </div>
+        `;
+        return;
+      }
+
+      facilitiesContainer.innerHTML = facilities.map(facility => {
         const facilityKey = getFacilityKey(facility.name);
         return `
         <div class="facility">
@@ -736,14 +816,23 @@
       }
     }
 
-    // ステータスバー更新
+    // 最終更新時間を更新
     function updateStatus(lastUpdated) {
       if (lastUpdated) {
         const date = new Date(lastUpdated);
         const time = date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-        statusBar.textContent = `最終更新: ${time}`;
+        lastUpdatedEl.textContent = `更新: ${time}`;
       }
     }
+
+    // トグル切り替え
+    availableOnlyToggle.addEventListener('click', () => {
+      showAvailableOnly = !showAvailableOnly;
+      availableOnlyToggle.classList.toggle('active', showAvailableOnly);
+      if (currentData) {
+        renderFacilities(currentData);
+      }
+    });
 
     // イベントリスナー
     searchBtn.addEventListener('click', () => {
