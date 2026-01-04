@@ -611,13 +611,11 @@
 
       facilitiesContainer.innerHTML = data.facilities.map(facility => {
         const facilityKey = getFacilityKey(facility.name);
-        const priceRange = getPriceRange(facilityKey);
         return `
         <div class="facility">
           <div class="facility-header">
             <span class="facility-name">${facility.name}</span>
             <div>
-              ${priceRange ? '<span class="price-range">' + priceRange + '</span>' : ''}
               <button class="pricing-toggle" onclick="togglePricing('${facilityKey}')">詳細</button>
               ${facility.mapUrl ? '<a href="' + facility.mapUrl + '" target="_blank" class="map-btn">MAP</a>' : ''}
               <a href="${facility.url}" target="_blank" class="reserve-btn">予約</a>

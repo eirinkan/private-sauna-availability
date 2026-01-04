@@ -283,28 +283,25 @@ async function scrapeStore(browser, rooms, storeName, cfData) {
   const result = { dates: {} };
   const today = new Date();
 
+  // まず7日分の日付を初期化（全部屋に空配列を設定）
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(today);
+    date.setDate(today.getDate() + i);
+    const dateStr = date.toISOString().split('T')[0];
+    result.dates[dateStr] = {};
+    for (const room of rooms) {
+      result.dates[dateStr][room.name] = [];
+    }
+  }
+
   for (const room of rooms) {
     try {
       const calendarData = await scrapeRoom(browser, room, storeName, cfData);
 
       // 部屋ごとのデータを結果にマージ
       for (const [dateStr, times] of Object.entries(calendarData)) {
-        if (!result.dates[dateStr]) {
-          result.dates[dateStr] = {};
-        }
-        result.dates[dateStr][room.name] = times.sort();
-      }
-
-      // データがない場合は空配列
-      if (Object.keys(calendarData).length === 0) {
-        for (let i = 0; i < 7; i++) {
-          const date = new Date(today);
-          date.setDate(today.getDate() + i);
-          const dateStr = date.toISOString().split('T')[0];
-          if (!result.dates[dateStr]) {
-            result.dates[dateStr] = {};
-          }
-          result.dates[dateStr][room.name] = [];
+        if (result.dates[dateStr]) {
+          result.dates[dateStr][room.name] = times.sort();
         }
       }
     } catch (error) {
