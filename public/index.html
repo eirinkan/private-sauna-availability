@@ -229,18 +229,33 @@
     }
 
     .room {
-      margin-bottom: 14px;
+      margin-bottom: 16px;
+      padding: 14px;
+      background: var(--bg-secondary);
+      border-radius: 10px;
+      border: 1px solid var(--border);
     }
 
     .room:last-child {
       margin-bottom: 0;
     }
 
+    .room-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
     .room-name {
       font-size: 0.95rem;
       color: var(--text-primary);
-      margin-bottom: 10px;
       font-weight: 600;
+      margin-right: auto;
+    }
+
+    .room-meta {
       display: flex;
       align-items: center;
       gap: 8px;
@@ -248,7 +263,7 @@
 
     .room-price {
       color: var(--accent);
-      font-size: 0.8rem;
+      font-size: 0.85rem;
       font-weight: 600;
     }
 
@@ -339,21 +354,25 @@
     }
 
     .time-label {
-      background: var(--bg-secondary);
-      color: var(--text-secondary);
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 0.75rem;
-      font-weight: 500;
-      border: 1px solid var(--border);
+      background: rgba(100, 149, 237, 0.15);
+      color: #7eb8ff;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      white-space: nowrap;
     }
 
     .capacity-icon {
-      color: var(--text-muted);
+      color: var(--text-secondary);
       font-size: 0.8rem;
       display: inline-flex;
       align-items: center;
-      gap: 2px;
+      gap: 3px;
+      background: rgba(160, 160, 176, 0.1);
+      padding: 3px 8px;
+      border-radius: 12px;
+      white-space: nowrap;
     }
 
     .link-only {
@@ -525,23 +544,30 @@
       return keyMap[name] || null;
     }
 
-    // 部屋名をフォーマット（時間ラベル化、定員アイコン化、価格オレンジ）
+    // 部屋名をパースしてオブジェクトで返す
     function formatRoomName(name) {
       // パターン: 部屋名（120分/定員2名）¥価格
-      // → 部屋名 [120分] 👤2 ¥価格
+      let roomName = name;
+      let time = '';
+      let capacity = '';
+      let price = '';
 
-      let result = name;
+      // 時間と定員を抽出
+      const metaMatch = name.match(/（(\d+)分\/定員(\d+)名）/);
+      if (metaMatch) {
+        time = metaMatch[1] + '分';
+        capacity = metaMatch[2];
+        roomName = name.replace(/（\d+分\/定員\d+名）/, '');
+      }
 
-      // 時間と定員を抽出してフォーマット
-      // パターン1: （120分/定員2名）
-      result = result.replace(/（(\d+)分\/定員(\d+)名）/g, (match, minutes, capacity) => {
-        return ' <span class="time-label">' + minutes + '分</span> <span class="capacity-icon">👤' + capacity + '</span> ';
-      });
+      // 価格を抽出
+      const priceMatch = roomName.match(/(¥[\d,]+[〜～]?[¥\d,]*[＋+]?[¥\d,／名]*)/);
+      if (priceMatch) {
+        price = priceMatch[1];
+        roomName = roomName.replace(priceMatch[0], '').trim();
+      }
 
-      // 価格部分をオレンジ色に
-      result = result.replace(/(¥[\d,]+[〜～]?[¥\d,]*[＋+]?[¥\d,／名]*)/g, '<span style="color:var(--accent)">$1</span>');
-
-      return result;
+      return { name: roomName, time, capacity, price };
     }
 
     // 施設の料金レンジを取得
@@ -674,10 +700,16 @@
               </div>
             ` : `
               ${facility.rooms && facility.rooms.length > 0 ? facility.rooms.map(room => {
+                const formatted = formatRoomName(room.name);
                 return `
                 <div class="room">
-                  <div class="room-name">
-                    <span>${formatRoomName(room.name)}</span>
+                  <div class="room-header">
+                    <span class="room-name">${formatted.name}</span>
+                    <div class="room-meta">
+                      ${formatted.time ? '<span class="time-label">' + formatted.time + '</span>' : ''}
+                      ${formatted.capacity ? '<span class="capacity-icon">👤' + formatted.capacity + '</span>' : ''}
+                      ${formatted.price ? '<span class="room-price">' + formatted.price + '</span>' : ''}
+                    </div>
                   </div>
                   <div class="slots">
                     ${room.availableSlots && room.availableSlots.length > 0
