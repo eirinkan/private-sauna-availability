@@ -368,12 +368,10 @@
       color: #a080c0;
     }
 
-    .capacity-icon {
+    .capacity-label {
       color: var(--text-muted);
-      font-size: 0.75rem;
-      display: inline-flex;
-      align-items: center;
-      gap: 2px;
+      font-size: 0.72rem;
+      font-weight: 500;
       white-space: nowrap;
     }
 
@@ -709,7 +707,7 @@
                     <span class="room-name">${formatted.name}</span>
                     <div class="room-meta">
                       ${formatted.price ? '<span class="room-price">' + formatted.price + '</span>' : ''}
-                      ${formatted.capacity ? '<span class="capacity-icon">👤' + formatted.capacity + '</span>' : ''}
+                      ${formatted.capacity ? '<span class="capacity-label">' + formatted.capacity + '人</span>' : ''}
                       ${formatted.time ? '<span class="time-label' + (formatted.time === 'night' ? ' night' : '') + '">' + formatted.time + '</span>' : ''}
                     </div>
                   </div>
