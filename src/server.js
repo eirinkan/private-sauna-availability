@@ -1,7 +1,10 @@
+require('dotenv').config();
+
 const express = require('express');
 const path = require('path');
 const cron = require('node-cron');
 const { scrapeAll, getAvailability } = require('./scraper');
+const { PRICING } = require('./pricing');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -29,6 +32,11 @@ app.post('/api/refresh', async (req, res) => {
 // API: ヘルスチェック
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// API: 料金情報取得
+app.get('/api/pricing', (req, res) => {
+  res.json(PRICING);
 });
 
 // 15分ごとに自動取得

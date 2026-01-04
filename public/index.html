@@ -210,6 +210,73 @@
       color: var(--text-muted);
       margin-bottom: 8px;
       font-weight: 500;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .room-price {
+      color: var(--accent);
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .pricing-toggle {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      padding: 6px 12px;
+      font-size: 0.75rem;
+      border-radius: 6px;
+      margin-left: 10px;
+    }
+
+    .pricing-toggle:hover {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      transform: none;
+      box-shadow: none;
+    }
+
+    .pricing-details {
+      background: var(--bg-secondary);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-top: 12px;
+      font-size: 0.8rem;
+      display: none;
+    }
+
+    .pricing-details.show {
+      display: block;
+    }
+
+    .pricing-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .pricing-row:last-child {
+      border-bottom: none;
+    }
+
+    .pricing-plan {
+      color: var(--text-secondary);
+    }
+
+    .pricing-price {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .pricing-note {
+      color: var(--text-muted);
+      font-size: 0.7rem;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
     }
 
     .slots {
@@ -231,6 +298,48 @@
     .no-slots {
       color: var(--text-muted);
       font-size: 0.85rem;
+    }
+
+    .link-only {
+      background: rgba(100, 149, 237, 0.1);
+      border: 1px solid rgba(100, 149, 237, 0.2);
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+
+    .link-only-message {
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      margin-bottom: 12px;
+    }
+
+    .room-links {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .room-link {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-secondary);
+      padding: 10px 14px;
+      border-radius: 8px;
+      text-decoration: none;
+      color: var(--text-primary);
+      font-size: 0.9rem;
+      transition: all 0.2s ease;
+    }
+
+    .room-link:hover {
+      background: var(--bg-card-hover);
+      transform: translateX(4px);
+    }
+
+    .room-link-arrow {
+      color: var(--accent);
+      font-weight: 600;
     }
 
     .error {
@@ -293,6 +402,9 @@
     const statusBar = document.getElementById('statusBar');
     const facilitiesContainer = document.getElementById('facilities');
 
+    // 料金データ（グローバル）
+    let pricingData = null;
+
     // 今日の日付をデフォルトに設定
     const today = new Date().toISOString().split('T')[0];
     dateInput.value = today;
@@ -302,6 +414,83 @@
     const maxDate = new Date();
     maxDate.setDate(maxDate.getDate() + 7);
     dateInput.max = maxDate.toISOString().split('T')[0];
+
+    // 料金データを取得
+    async function fetchPricing() {
+      try {
+        const res = await fetch('/api/pricing');
+        pricingData = await res.json();
+      } catch (e) {
+        console.error('料金データ取得エラー:', e);
+      }
+    }
+
+    // 部屋名から料金を取得
+    function getRoomPrice(facilityKey, roomName) {
+      if (!pricingData || !pricingData[facilityKey]) return null;
+      const facility = pricingData[facilityKey];
+      const isWeekend = isSelectedDateWeekend();
+
+      for (const plan of facility.plans) {
+        // 部屋名の一部がマッチするか確認
+        if (roomName.includes(plan.name) || plan.name.includes(roomName.split(' ')[0])) {
+          if (plan.weekday !== undefined) {
+            return isWeekend ? plan.weekend : plan.weekday;
+          }
+          return plan.price;
+        }
+      }
+      return null;
+    }
+
+    // 選択日が週末かどうか
+    function isSelectedDateWeekend() {
+      const date = new Date(dateInput.value);
+      const day = date.getDay();
+      return day === 0 || day === 6; // 日曜=0, 土曜=6
+    }
+
+    // 施設キーを取得
+    function getFacilityKey(name) {
+      const keyMap = {
+        'SAUNA SAKURADO': 'sakurado',
+        'GIRAFFE': 'giraffe',
+        'KUDOCHI福岡中洲': 'kudochi',
+        'SAUNA OOO FUKUOKA': 'saunaOoo',
+        'BASE Private sauna': 'base'
+      };
+      return keyMap[name] || null;
+    }
+
+    // 施設の料金詳細を生成
+    function getPricingDetails(facilityKey) {
+      if (!pricingData || !pricingData[facilityKey]) return '';
+      const facility = pricingData[facilityKey];
+      const isWeekend = isSelectedDateWeekend();
+
+      let html = '<div class="pricing-details" id="pricing-' + facilityKey + '">';
+
+      // プランを5つまで表示
+      const displayPlans = facility.plans.slice(0, 6);
+      for (const plan of displayPlans) {
+        let price;
+        if (plan.weekday !== undefined) {
+          price = isWeekend ? plan.weekend : plan.weekday;
+        } else {
+          price = plan.price;
+        }
+        html += '<div class="pricing-row">';
+        html += '<span class="pricing-plan">' + plan.name + '</span>';
+        html += '<span class="pricing-price">¥' + price.toLocaleString() + '</span>';
+        html += '</div>';
+      }
+
+      if (facility.note) {
+        html += '<div class="pricing-note">※ ' + facility.note + '</div>';
+      }
+      html += '</div>';
+      return html;
+    }
 
     // 空き状況を取得
     async function fetchAvailability(date) {
@@ -337,31 +526,63 @@
         return;
       }
 
-      facilitiesContainer.innerHTML = data.facilities.map(facility => `
+      facilitiesContainer.innerHTML = data.facilities.map(facility => {
+        const facilityKey = getFacilityKey(facility.name);
+        return `
         <div class="facility">
           <div class="facility-header">
             <span class="facility-name">${facility.name}</span>
-            <a href="${facility.url}" target="_blank" class="facility-link">予約 →</a>
+            <div>
+              <button class="pricing-toggle" onclick="togglePricing('${facilityKey}')">料金</button>
+              <a href="${facility.url}" target="_blank" class="facility-link">予約 →</a>
+            </div>
           </div>
           <div class="facility-content">
+            ${getPricingDetails(facilityKey)}
             ${facility.error ? `
               <div class="error">${facility.error}</div>
+            ` : facility.linkOnly ? `
+              <div class="link-only">
+                <div class="link-only-message">予約サイトで空き状況を確認</div>
+                <div class="room-links">
+                  ${facility.rooms.map(room => `
+                    <a href="${room.url}" target="_blank" class="room-link">
+                      <span>${room.name}</span>
+                      <span class="room-link-arrow">→</span>
+                    </a>
+                  `).join('')}
+                </div>
+              </div>
             ` : `
-              ${facility.rooms && facility.rooms.length > 0 ? facility.rooms.map(room => `
+              ${facility.rooms && facility.rooms.length > 0 ? facility.rooms.map(room => {
+                const price = getRoomPrice(facilityKey, room.name);
+                const priceStr = price ? '¥' + price.toLocaleString() : '';
+                return `
                 <div class="room">
-                  <div class="room-name">${room.name}</div>
+                  <div class="room-name">
+                    <span>${room.name}</span>
+                    ${priceStr ? '<span class="room-price">' + priceStr + '</span>' : ''}
+                  </div>
                   <div class="slots">
                     ${room.availableSlots && room.availableSlots.length > 0
-                      ? room.availableSlots.map(slot => `<span class="slot">${slot}</span>`).join('')
+                      ? room.availableSlots.map(slot => '<span class="slot">' + slot + '</span>').join('')
                       : '<span class="no-slots">空きなし</span>'
                     }
                   </div>
                 </div>
-              `).join('') : '<div class="no-slots">データ取得中...</div>'}
+              `}).join('') : '<div class="no-slots">データ取得中...</div>'}
             `}
           </div>
         </div>
-      `).join('');
+      `}).join('');
+    }
+
+    // 料金詳細の表示切り替え
+    function togglePricing(facilityKey) {
+      const el = document.getElementById('pricing-' + facilityKey);
+      if (el) {
+        el.classList.toggle('show');
+      }
     }
 
     // ステータスバー更新
@@ -382,8 +603,11 @@
       fetchAvailability(dateInput.value);
     });
 
-    // 初期読み込み
-    fetchAvailability(today);
+    // 初期読み込み（料金データを先に取得）
+    (async function init() {
+      await fetchPricing();
+      fetchAvailability(today);
+    })();
   </script>
 </body>
 </html>
