@@ -123,6 +123,12 @@ async function scrape(browser) {
       const day = String(targetDate.getDate()).padStart(2, '0');
       const dateId = `${year}-${month}-${day}`;
 
+      // 2日目以降は再度ページにアクセス（goBackが効かないため）
+      if (i > 0) {
+        await page.goto(URL, { waitUntil: 'networkidle2', timeout: 60000 });
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
+
       // 日付をクリック（label[for="2026-01-07"] 形式）
       const clicked = await page.evaluate((dateId, dayNum) => {
         // 1. label[for="yyyy-mm-dd"] で直接探す
@@ -224,10 +230,6 @@ async function scrape(browser) {
             return aH - bH;
           });
         }
-
-        // 戻る（カレンダーに戻る）
-        await page.goBack({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {});
-        await new Promise(resolve => setTimeout(resolve, 2000));
       }
     }
 
