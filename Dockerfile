@@ -27,8 +27,9 @@ COPY . .
 # データディレクトリを作成
 RUN mkdir -p /app/data
 
-# ポート設定
-EXPOSE 3000
+# Cloud RunはPORT環境変数を使用
+ENV PORT=8080
+EXPOSE 8080
 
 # 起動コマンド
 CMD ["npm", "start"]
