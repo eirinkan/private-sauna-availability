@@ -1,29 +1,31 @@
-FROM ghcr.io/puppeteer/puppeteer:24.1.1
+FROM node:20-slim
 
-# rootユーザーでセットアップ
-USER root
-
-# 日本語フォントをインストール
+# Puppeteer用の依存関係をインストール
 RUN apt-get update && apt-get install -y \
+    chromium \
     fonts-ipafont-gothic \
     fonts-wqy-zenhei \
+    fonts-thai-tlwg \
+    fonts-kacst \
+    fonts-freefont-ttf \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
-# 作業ディレクトリを作成し権限を設定
-RUN mkdir -p /app/data && chown -R pptruser:pptruser /app
+# Puppeteerの設定（Chromiumのダウンロードをスキップ、システムのChromiumを使用）
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 WORKDIR /app
 
-# 依存関係ファイルをコピーしてインストール
-COPY --chown=pptruser:pptruser package*.json ./
+# 依存関係をインストール
+COPY package*.json ./
 RUN npm ci --only=production
 
 # アプリケーションをコピー
-COPY --chown=pptruser:pptruser . .
+COPY . .
 
-# pptruser に切り替え
-USER pptruser
+# データディレクトリを作成
+RUN mkdir -p /app/data
 
 # Cloud RunはPORT環境変数を使用
 ENV PORT=8080

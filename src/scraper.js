@@ -1,10 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-// Cloud Run環境では標準puppeteerを使用
-// Puppeteer公式イメージでは PUPPETEER_EXECUTABLE_PATH をクリアする必要がある
-delete process.env.PUPPETEER_EXECUTABLE_PATH;
-
+// Cloud Run環境かどうか
 const isCloudRun = !!process.env.K_SERVICE;
 let puppeteer;
 
