@@ -15,6 +15,10 @@ const coubic = require('./sites/coubic');
 const myaku = require('./sites/myaku');
 const yogan = require('./sites/yogan');
 
+// ヘルスモニタリング・通知
+const healthMonitor = require('./health-monitor');
+const notifier = require('./notifier');
+
 const DATA_FILE = path.join(__dirname, '../data/availability.json');
 
 // キャッシュデータの読み込み
@@ -51,6 +55,62 @@ async function launchBrowser() {
   });
 }
 
+/**
+ * サイトスクレイピングをヘルスモニタリング付きで実行
+ * @param {string} siteName - サイト識別名
+ * @param {Function} scrapeFunc - スクレイピング関数
+ * @param {Object} browser - Puppeteerブラウザ
+ * @returns {Object} スクレイピング結果
+ */
+async function scrapeWithMonitoring(siteName, scrapeFunc, browser) {
+  try {
+    const result = await scrapeFunc(browser);
+
+    // 空き枠数をカウント
+    let totalSlots = 0;
+    if (result.dates) {
+      for (const dayData of Object.values(result.dates)) {
+        for (const slots of Object.values(dayData)) {
+          totalSlots += (slots || []).length;
+        }
+      }
+    }
+
+    // 成功を記録
+    const notification = healthMonitor.recordResult(siteName, {
+      success: true,
+      method: result.method || 'dom',
+      slots: totalSlots,
+      fallback: result.fallback || false
+    });
+
+    // AI Visionフォールバック発動時の通知
+    if (notification.shouldNotify && notification.type === 'ai_fallback') {
+      await notifier.sendFallbackNotification(siteName, totalSlots);
+    }
+
+    return result;
+  } catch (error) {
+    // 失敗を記録
+    const notification = healthMonitor.recordResult(siteName, {
+      success: false,
+      method: 'unknown',
+      error: error.message
+    });
+
+    // 連続失敗アラート
+    if (notification.shouldNotify && notification.type === 'consecutive_failures') {
+      await notifier.sendFailureAlert(
+        siteName,
+        notification.details.consecutiveFailures,
+        error.message
+      );
+    }
+
+    throw error;
+  }
+}
+
 // 全サイトスクレイピング
 async function scrapeAll() {
   const browser = await launchBrowser();
@@ -62,7 +122,7 @@ async function scrapeAll() {
     // SAKURADO
     console.log('  - SAKURADO スクレイピング中...');
     try {
-      data.facilities.sakurado = await sakurado.scrape(browser);
+      data.facilities.sakurado = await scrapeWithMonitoring('sakurado', sakurado.scrape, browser);
     } catch (e) {
       console.error('    SAKURADO エラー:', e.message);
       data.facilities.sakurado = { error: e.message };
@@ -71,7 +131,7 @@ async function scrapeAll() {
     // GIRAFFE 南天神 (RESERVA)
     console.log('  - GIRAFFE南天神 スクレイピング中...');
     try {
-      data.facilities.giraffeMiamitenjin = await reserva.scrapeMiamitenjin(browser);
+      data.facilities.giraffeMiamitenjin = await scrapeWithMonitoring('giraffeMiamitenjin', reserva.scrapeMiamitenjin, browser);
     } catch (e) {
       console.error('    GIRAFFE南天神 エラー:', e.message);
       data.facilities.giraffeMiamitenjin = { error: e.message };
@@ -80,7 +140,7 @@ async function scrapeAll() {
     // GIRAFFE 天神 (RESERVA)
     console.log('  - GIRAFFE天神 スクレイピング中...');
     try {
-      data.facilities.giraffeTenjin = await reserva.scrapeTenjin(browser);
+      data.facilities.giraffeTenjin = await scrapeWithMonitoring('giraffeTenjin', reserva.scrapeTenjin, browser);
     } catch (e) {
       console.error('    GIRAFFE天神 エラー:', e.message);
       data.facilities.giraffeTenjin = { error: e.message };
@@ -89,7 +149,7 @@ async function scrapeAll() {
     // KUDOCHI (hacomono)
     console.log('  - KUDOCHI スクレイピング中...');
     try {
-      data.facilities.kudochi = await hacomono.scrape(browser);
+      data.facilities.kudochi = await scrapeWithMonitoring('kudochi', hacomono.scrape, browser);
     } catch (e) {
       console.error('    KUDOCHI エラー:', e.message);
       data.facilities.kudochi = { error: e.message };
@@ -98,7 +158,7 @@ async function scrapeAll() {
     // SAUNA OOO (gflow)
     console.log('  - SAUNA OOO スクレイピング中...');
     try {
-      data.facilities.saunaOoo = await gflow.scrape(browser);
+      data.facilities.saunaOoo = await scrapeWithMonitoring('saunaOoo', gflow.scrape, browser);
     } catch (e) {
       console.error('    SAUNA OOO エラー:', e.message);
       data.facilities.saunaOoo = { error: e.message };
@@ -107,7 +167,7 @@ async function scrapeAll() {
     // BASE (Coubic)
     console.log('  - BASE スクレイピング中...');
     try {
-      data.facilities.base = await coubic.scrape(browser);
+      data.facilities.base = await scrapeWithMonitoring('base', coubic.scrape, browser);
     } catch (e) {
       console.error('    BASE エラー:', e.message);
       data.facilities.base = { error: e.message };
@@ -116,7 +176,7 @@ async function scrapeAll() {
     // 脈 (spot-ly)
     console.log('  - 脈 スクレイピング中...');
     try {
-      data.facilities.myaku = await myaku.scrape(browser);
+      data.facilities.myaku = await scrapeWithMonitoring('myaku', myaku.scrape, browser);
     } catch (e) {
       console.error('    脈 エラー:', e.message);
       data.facilities.myaku = { error: e.message };
@@ -125,10 +185,19 @@ async function scrapeAll() {
     // サウナヨーガン (reserva.be)
     console.log('  - サウナヨーガン スクレイピング中...');
     try {
-      data.facilities.yogan = await yogan.scrape(browser);
+      data.facilities.yogan = await scrapeWithMonitoring('yogan', yogan.scrape, browser);
     } catch (e) {
       console.error('    サウナヨーガン エラー:', e.message);
       data.facilities.yogan = { error: e.message };
+    }
+
+    // ヘルスサマリーをログ出力
+    const healthSummary = healthMonitor.getHealthSummary();
+    if (healthSummary.unhealthySites.length > 0) {
+      console.log('\n⚠️ 異常検知サイト:');
+      for (const site of healthSummary.unhealthySites) {
+        console.log(`  - ${site.name}: ${site.consecutiveFailures}回連続失敗`);
+      }
     }
 
     saveData(data);
