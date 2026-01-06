@@ -50,13 +50,17 @@ async function launchBrowser() {
   return puppeteer.launch({
     headless: 'new',
     executablePath: executablePath,
+    timeout: 60000,
+    protocolTimeout: 60000,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
       '--disable-gpu',
       '--single-process',
-      '--no-zygote'
+      '--no-zygote',
+      '--disable-extensions',
+      '--disable-software-rasterizer'
     ]
   });
 }
