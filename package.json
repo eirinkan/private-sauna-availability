@@ -1,5 +1,5 @@
 {
-  "name": "fukuoka-sauna-checker",
+  "name": "private-sauna-availability",
   "version": "1.0.0",
   "description": "福岡プライベートサウナ空き状況チェッカー",
   "main": "src/server.js",

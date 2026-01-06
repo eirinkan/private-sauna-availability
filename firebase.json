@@ -11,7 +11,7 @@
       {
         "source": "**",
         "run": {
-          "serviceId": "fukuoka-sauna-checker",
+          "serviceId": "private-sauna-availability",
           "region": "asia-northeast1"
         }
       }

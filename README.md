@@ -86,12 +86,12 @@ gcloud artifacts repositories create docker-repo \
 gcloud auth configure-docker asia-northeast1-docker.pkg.dev
 
 # 5. イメージビルド＆プッシュ
-docker build -t asia-northeast1-docker.pkg.dev/YOUR_PROJECT_ID/docker-repo/fukuoka-sauna-checker .
-docker push asia-northeast1-docker.pkg.dev/YOUR_PROJECT_ID/docker-repo/fukuoka-sauna-checker
+docker build -t asia-northeast1-docker.pkg.dev/YOUR_PROJECT_ID/docker-repo/private-sauna-availability .
+docker push asia-northeast1-docker.pkg.dev/YOUR_PROJECT_ID/docker-repo/private-sauna-availability
 
 # 6. Cloud Runデプロイ
-gcloud run deploy fukuoka-sauna-checker \
-  --image asia-northeast1-docker.pkg.dev/YOUR_PROJECT_ID/docker-repo/fukuoka-sauna-checker \
+gcloud run deploy private-sauna-availability \
+  --image asia-northeast1-docker.pkg.dev/YOUR_PROJECT_ID/docker-repo/private-sauna-availability \
   --region asia-northeast1 \
   --platform managed \
   --allow-unauthenticated \
