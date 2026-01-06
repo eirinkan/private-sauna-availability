@@ -44,13 +44,19 @@ function saveData(data) {
 
 // Puppeteerブラウザ起動（共通設定）
 async function launchBrowser() {
+  const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || null;
+  console.log('Chromium path:', executablePath || 'default');
+
   return puppeteer.launch({
     headless: 'new',
+    executablePath: executablePath,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
-      '--disable-gpu'
+      '--disable-gpu',
+      '--single-process',
+      '--no-zygote'
     ]
   });
 }
