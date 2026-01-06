@@ -46,12 +46,12 @@ function saveData(data) {
 async function launchBrowser() {
   const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || null;
   console.log('Chromium path:', executablePath || 'default');
+  console.log('Environment:', process.env.NODE_ENV || 'development');
 
-  return puppeteer.launch({
+  const launchOptions = {
     headless: 'new',
-    executablePath: executablePath,
-    timeout: 60000,
-    protocolTimeout: 60000,
+    timeout: 120000,
+    protocolTimeout: 120000,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -60,9 +60,35 @@ async function launchBrowser() {
       '--single-process',
       '--no-zygote',
       '--disable-extensions',
-      '--disable-software-rasterizer'
+      '--disable-software-rasterizer',
+      '--disable-background-networking',
+      '--disable-default-apps',
+      '--disable-sync',
+      '--disable-translate',
+      '--hide-scrollbars',
+      '--metrics-recording-only',
+      '--mute-audio',
+      '--no-first-run',
+      '--safebrowsing-disable-auto-update'
     ]
-  });
+  };
+
+  // Cloud Run環境ではexecutablePathを設定
+  if (executablePath) {
+    launchOptions.executablePath = executablePath;
+  }
+
+  console.log('Launching browser with options:', JSON.stringify(launchOptions, null, 2));
+
+  try {
+    const browser = await puppeteer.launch(launchOptions);
+    console.log('Browser launched successfully');
+    return browser;
+  } catch (error) {
+    console.error('Browser launch failed:', error.message);
+    console.error('Stack:', error.stack);
+    throw error;
+  }
 }
 
 /**
