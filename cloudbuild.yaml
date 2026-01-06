@@ -42,7 +42,8 @@ steps:
       - '2'
       - '--timeout'
       - '300'
-      # Puppeteer公式イメージを使用するため、環境変数は不要
+      - '--remove-env-vars'
+      - 'PUPPETEER_EXECUTABLE_PATH,PUPPETEER_SKIP_CHROMIUM_DOWNLOAD'
 
 images:
   - 'asia-northeast1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/private-sauna-availability:$COMMIT_SHA'

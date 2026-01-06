@@ -40,6 +40,10 @@ app.get('/api/health', (req, res) => {
 
 // API: Puppeteer診断（Cloud Run環境デバッグ用）
 app.get('/api/debug/puppeteer', async (req, res) => {
+  // Puppeteer公式イメージでは executablePath を指定しない
+  // PUPPETEER_EXECUTABLE_PATH 環境変数をクリア
+  delete process.env.PUPPETEER_EXECUTABLE_PATH;
+
   const puppeteer = require('puppeteer');
   const startTime = Date.now();
   const results = { steps: [], errors: [] };
@@ -49,7 +53,7 @@ app.get('/api/debug/puppeteer', async (req, res) => {
     results.environment = {
       K_SERVICE: process.env.K_SERVICE || 'not set',
       NODE_ENV: process.env.NODE_ENV || 'not set',
-      PUPPETEER_EXECUTABLE_PATH: process.env.PUPPETEER_EXECUTABLE_PATH || 'not set'
+      PUPPETEER_EXECUTABLE_PATH: process.env.PUPPETEER_EXECUTABLE_PATH || 'not set (cleared)'
     };
 
     results.steps.push({ step: 'launching', time: Date.now() - startTime });
