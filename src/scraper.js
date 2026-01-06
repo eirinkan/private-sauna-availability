@@ -1,10 +1,19 @@
 const fs = require('fs');
 const path = require('path');
-const puppeteer = require('puppeteer-extra');
-const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 
-// Stealth pluginを有効化（ボット検出回避）
-puppeteer.use(StealthPlugin());
+// Cloud Run環境では標準puppeteerを使用（puppeteer-extraが動作しない場合）
+const isCloudRun = !!process.env.K_SERVICE;
+let puppeteer;
+
+if (isCloudRun) {
+  console.log('Cloud Run環境を検出 - 標準puppeteerを使用');
+  puppeteer = require('puppeteer');
+} else {
+  console.log('ローカル環境 - puppeteer-extraを使用');
+  puppeteer = require('puppeteer-extra');
+  const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+  puppeteer.use(StealthPlugin());
+}
 
 // 各サイトのスクレイパー
 const sakurado = require('./sites/sakurado');
