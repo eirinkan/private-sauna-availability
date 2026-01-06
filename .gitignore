@@ -5,6 +5,9 @@ node_modules/
 .env
 .env.local
 
+# Firebase
+.firebase/
+
 # Data files
 data/*.json
 

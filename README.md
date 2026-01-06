@@ -21,7 +21,8 @@
 - **スクレイピング**: Puppeteer + puppeteer-extra-plugin-stealth
 - **Cloudflare対策**: FlareSolverr（オプション）
 - **AI解析フォールバック**: Google Gemini Vision API（オプション）
-- **デプロイ**: Google Cloud Run
+- **ヘルスモニタリング**: 連続失敗検知 + Chatwork通知
+- **デプロイ**: Google Cloud Run + Firebase Hosting
 
 ## ローカル開発
 
@@ -138,6 +139,7 @@ gcloud scheduler jobs create http sauna-refresh-job \
 ├── Dockerfile          # Cloud Run用Dockerファイル
 ├── package.json        # 依存関係
 ├── .env.example        # 環境変数テンプレート
+├── firebase.json       # Firebase Hosting設定
 ├── public/             # 静的ファイル（フロントエンド）
 │   └── index.html
 ├── src/
@@ -146,16 +148,17 @@ gcloud scheduler jobs create http sauna-refresh-job \
 │   ├── pricing.js      # 料金データ
 │   ├── ai-scraper.js   # AI Vision解析（フォールバック）
 │   ├── flaresolverr.js # Cloudflare対策
+│   ├── notifier.js     # Chatwork通知
+│   ├── health-monitor.js # ヘルスモニタリング
 │   └── sites/          # 各サイト用スクレイパー
-│       ├── sakurado.js
-│       ├── reserva.js  # GIRAFFE, サウナヨーガン
+│       ├── sakurado.js # SAUNA SAKURADO
+│       ├── reserva.js  # GIRAFFE南天神, GIRAFFE天神
 │       ├── hacomono.js # KUDOCHI
 │       ├── gflow.js    # SAUNA OOO
 │       ├── coubic.js   # BASE
-│       ├── myaku.js    # 脈
+│       ├── myaku.js    # 脈 MYAKU
 │       └── yogan.js    # サウナヨーガン
-└── data/               # スクレイピング結果保存
-    └── availability.json
+└── data/               # スクレイピング結果保存（実行時生成）
 ```
 
 ## 環境変数
@@ -164,6 +167,9 @@ gcloud scheduler jobs create http sauna-refresh-job \
 |--------|------|------|
 | PORT | No | サーバーポート（デフォルト: 3000） |
 | GOOGLE_API_KEY | No | Gemini Vision API キー（AI解析用） |
+| NOTIFICATION_ENABLED | No | 通知機能の有効化（デフォルト: false） |
+| CHATWORK_API_TOKEN | No | Chatwork APIトークン（通知用） |
+| CHATWORK_ROOM_ID | No | Chatwork通知先ルームID |
 
 ## 注意事項
 
