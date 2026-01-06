@@ -1,3 +1,5 @@
+# Cloud Build自動デプロイ設定
+# mainブランチへのpushで自動実行
 steps:
   # Dockerイメージをビルド
   - name: 'gcr.io/cloud-builders/docker'
