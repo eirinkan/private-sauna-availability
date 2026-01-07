@@ -137,9 +137,9 @@ const facilityInfo = [
   {
     key: 'newStore',                    // data.facilities のキー
     name: '新店舗名',                    // 表示名
-    url: 'https://予約URL',             // 予約ページURL
+    url: 'https://スクレイピング元URL',   // 空き状況を取得しているページURL
     hpUrl: 'https://公式サイト',         // 公式HP URL
-    mapUrl: 'https://maps.google...'    // Google Maps URL
+    mapUrl: 'https://www.google.com/maps/search/?api=1&query=店舗名+地域'  // Google Maps検索URL
   }
 ];
 ```
@@ -201,7 +201,23 @@ const PRICING = {
 
 ---
 
-## 3. 部屋名のフォーマット（統一ルール）
+## 3. URL設定ルール
+
+| フィールド | 内容 | 例 |
+|-----------|------|-----|
+| `url` | スクレイピング元のURL（予約ボタンのリンク先） | `https://reserva.be/xxx/reserve?...` |
+| `hpUrl` | 公式サイトURL（施設名タップ時） | `https://example-sauna.com/` |
+| `mapUrl` | Google Maps検索URL（📍アイコン） | `https://www.google.com/maps/search/?api=1&query=店舗名+地域` |
+
+**Google Maps URL生成方法：**
+```
+https://www.google.com/maps/search/?api=1&query=店舗名+地域名
+```
+例: `https://www.google.com/maps/search/?api=1&query=KUDOCHI+福岡中洲`
+
+---
+
+## 4. 部屋名のフォーマット（統一ルール）
 
 ```
 部屋名（時間/定員N名）¥最低価格-最高価格
@@ -214,7 +230,7 @@ const PRICING = {
 
 ---
 
-## 4. 予約システム別のポイント
+## 5. 予約システム別のポイント
 
 ### RESERVA (`reserva.be`)
 - Cloudflare対策が必要（FlareSolverr or AI Vision）
@@ -236,7 +252,7 @@ const PRICING = {
 
 ---
 
-## 5. チェックリスト
+## 6. チェックリスト
 
 新店舗追加時の確認項目：
 
@@ -250,7 +266,7 @@ const PRICING = {
 
 ---
 
-## 6. デバッグ
+## 7. デバッグ
 
 ### ローカルテスト
 ```bash
