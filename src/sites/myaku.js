@@ -3,9 +3,79 @@
  * URL: https://spot-ly.jp/ja/hotels/176
  *
  * モーダル内の時間帯ボタンから詳細な空き状況を取得
+ * AI Vision APIを使用してグレーアウトされたボタンを検出
  */
 
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+
 const BASE_URL = 'https://spot-ly.jp/ja/hotels/176';
+
+// Google AIクライアント
+let aiClient = null;
+function getAIClient() {
+  if (!aiClient && process.env.GOOGLE_API_KEY) {
+    aiClient = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
+  }
+  return aiClient;
+}
+
+/**
+ * スクリーンショットからグレーアウトされたスロットを検出
+ * @param {Buffer} screenshotBuffer - モーダルのスクリーンショット
+ * @param {Array} timeSlots - 時間帯の配列
+ * @returns {Array} グレーアウトされた位置の配列 [{dayIdx, slotIdx}]
+ */
+async function detectDisabledSlotsFromImage(screenshotBuffer, timeSlots) {
+  const genAI = getAIClient();
+  if (!genAI) {
+    console.log('    → AI Vision: GOOGLE_API_KEY未設定');
+    return [];
+  }
+
+  const base64Image = screenshotBuffer.toString('base64');
+
+  const prompt = `この画像はサウナ施設の予約モーダルです。カレンダー形式で7日分の予約枠が表示されています。
+
+【判定ルール】
+- グレー（灰色）の背景色のボタン → 予約不可（disabled）
+- 白い背景のボタン → 予約可能（available）
+
+【出力形式】
+グレーアウトされている（予約不可の）ボタンの位置を以下のJSON形式で出力してください。
+列（column）は左から0〜6（日付）、行（row）は上から0〜${timeSlots.length - 1}（時間帯）です。
+
+例：左端の列の2行目と、右端の列の1行目がグレーの場合：
+{"disabled": [{"col": 0, "row": 1}, {"col": 6, "row": 0}]}
+
+グレーのボタンがない場合：
+{"disabled": []}
+
+JSONのみ出力：`;
+
+  try {
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.0-flash',
+      generationConfig: { temperature: 0.1 }
+    });
+
+    const result = await model.generateContent([
+      { inlineData: { mimeType: 'image/png', data: base64Image } },
+      prompt
+    ]);
+
+    const text = result.response.text();
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return parsed.disabled || [];
+    }
+  } catch (error) {
+    console.log(`    → AI Vision エラー: ${error.message}`);
+  }
+
+  return [];
+}
 
 // プラン情報（順序は空室状況ページでの表示順）
 const PLANS = [
@@ -149,83 +219,95 @@ async function scrape(browser) {
         // モーダルが開くのを待つ
         await new Promise(resolve => setTimeout(resolve, 2000));
 
-        // モーダル内の時間帯ボタンから空き状況を取得
-        const availability = await page.evaluate((timeSlots) => {
-          // 時間帯ボタンを取得（モーダル内のflexボタン）
-          const timeButtons = document.querySelectorAll('button[class*="flex-col"][class*="border"]');
-          if (timeButtons.length === 0) {
-            return { error: 'ボタンが見つかりません', count: 0 };
-          }
+        // モーダルが完全に読み込まれるまで待機
+        // 「日時を選ぶ」テキストを含むモーダルが表示されるのを待つ
+        let modalReady = false;
+        for (let i = 0; i < 10; i++) {
+          modalReady = await page.evaluate(() => {
+            // モーダルのタイトル「日時を選ぶ」を探す
+            const modalTitle = Array.from(document.querySelectorAll('*')).find(
+              el => el.innerText && el.innerText.includes('日時を選ぶ')
+            );
+            return !!modalTitle;
+          });
+          if (modalReady) break;
+          await new Promise(r => setTimeout(r, 500));
+        }
+        if (!modalReady) {
+          console.log(`    → ${plan.planTitle}: モーダルが開きませんでした`);
+          continue;
+        }
 
-          // 日付ヘッダーを取得
-          const headerRow = document.querySelector('[class*="grid"]');
+        // モーダルの描画完了を待機
+        await new Promise(r => setTimeout(r, 2000));
+
+        // スクリーンショットを撮影
+        const screenshotBuffer = await page.screenshot({ encoding: 'binary' });
+
+        // AI Vision APIで無効スロットを検出
+        const disabledSlots = await detectDisabledSlotsFromImage(screenshotBuffer, plan.timeSlots);
+        console.log(`    → AI Vision: ${disabledSlots.length}個のdisabledスロット検出`);
+
+        // 日付ヘッダーを取得
+        const dateInfo = await page.evaluate(() => {
           const dateTexts = [];
-          if (headerRow) {
-            const dateEls = headerRow.querySelectorAll('div');
-            dateEls.forEach(el => {
-              const text = el.innerText.trim();
-              if (text.match(/^\d{1,2}\n[日月火水木金土]$/)) {
-                const day = parseInt(text.split('\n')[0]);
-                dateTexts.push(day);
-              }
-            });
-          }
-
-          // 7日分の日付を推定
-          const dates = [];
-          if (dateTexts.length > 0) {
-            for (const day of dateTexts) {
-              dates.push({ day });
-            }
-          } else {
-            // 日付が取得できない場合は今日から7日分
-            const today = new Date();
-            for (let i = 0; i < 7; i++) {
-              const d = new Date(today);
-              d.setDate(d.getDate() + i);
-              dates.push({ day: d.getDate(), month: d.getMonth() + 1 });
+          // モーダル内の日付ヘッダーを探す
+          const allDivs = document.querySelectorAll('div');
+          for (const div of allDivs) {
+            const text = div.innerText.trim();
+            // 日付パターン: "11\n日" や "12\n月" など
+            if (text.match(/^\d{1,2}\n[日月火水木金土]$/)) {
+              const day = parseInt(text.split('\n')[0]);
+              dateTexts.push(day);
             }
           }
+          // 重複を除去して最初の7件を返す
+          const unique = [...new Set(dateTexts)].slice(0, 7);
+          return unique.length > 0 ? unique : null;
+        });
 
-          // ボタン数と時間帯数から日数を計算
-          const slotsPerDay = timeSlots.length;
-          const numDays = Math.min(Math.floor(timeButtons.length / slotsPerDay), 7);
+        // 日付リストを構築
+        const dates = [];
+        if (dateInfo && dateInfo.length > 0) {
+          for (const day of dateInfo) {
+            dates.push({ day });
+          }
+        } else {
+          // 日付が取得できない場合は今日から7日分
+          const today = new Date();
+          for (let i = 0; i < 7; i++) {
+            const d = new Date(today);
+            d.setDate(d.getDate() + i);
+            dates.push({ day: d.getDate(), month: d.getMonth() + 1 });
+          }
+        }
 
-          const availableSlots = [];
+        // 無効スロットのセットを作成（高速ルックアップ用）
+        const disabledSet = new Set(disabledSlots.map(s => `${s.col}-${s.row}`));
 
-          for (let dayIdx = 0; dayIdx < numDays; dayIdx++) {
-            const dateInfo = dates[dayIdx] || { day: dayIdx + 1 };
+        // 空きスロットを計算（全スロット - 無効スロット）
+        const availableSlots = [];
+        const slotsPerDay = plan.timeSlots.length;
+        const numDays = Math.min(dates.length, 7);
 
-            for (let slotIdx = 0; slotIdx < slotsPerDay; slotIdx++) {
-              const btnIndex = dayIdx * slotsPerDay + slotIdx;
-              const btn = timeButtons[btnIndex];
-
-              if (btn && !btn.disabled) {
-                availableSlots.push({
-                  day: dateInfo.day,
-                  month: dateInfo.month,
-                  timeSlot: timeSlots[slotIdx]
-                });
-              }
+        for (let dayIdx = 0; dayIdx < numDays; dayIdx++) {
+          for (let slotIdx = 0; slotIdx < slotsPerDay; slotIdx++) {
+            const key = `${dayIdx}-${slotIdx}`;
+            if (!disabledSet.has(key)) {
+              availableSlots.push({
+                day: dates[dayIdx].day,
+                month: dates[dayIdx].month,
+                timeSlot: plan.timeSlots[slotIdx]
+              });
             }
           }
+        }
 
-          return {
-            totalButtons: timeButtons.length,
-            slotsPerDay,
-            numDays,
-            availableSlots
-          };
-        }, plan.timeSlots);
+        const availability = { availableSlots };
 
         // モーダルを閉じる（×ボタンまたはESC）
         await page.keyboard.press('Escape');
         await new Promise(resolve => setTimeout(resolve, 1000));
-
-        if (availability.error) {
-          console.log(`    → ${plan.planTitle}: ${availability.error}`);
-          continue;
-        }
 
         // 結果を処理
         let addedCount = 0;
