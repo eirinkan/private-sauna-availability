@@ -2,72 +2,59 @@
  * 脈 -MYAKU PRIVATE SAUNA- (spot-ly) スクレイパー
  * URL: https://spot-ly.jp/ja/hotels/176
  *
- * 3部屋・7プラン:
- * - 休 KYU: 90分プラン（午後）のみ
- * - 水 MIZU: ナイトパック、90分プラン（午後）、90分プラン（午前）
- * - 火 HI: ナイトパック、90分プラン（午後）、90分プラン（午前）
+ * 現在は日単位の空き状況（○/×）を取得
  *
- * 詳細な時間帯取得方法（TODO: 実装中）:
- * 1. URLに日付パラメータを付与してアクセス
- * 2. 人数ドロップダウンで「1名」を選択
- * 3. 「予約する」ボタンをクリック
- * 4. 時間帯ボタンのdisabled属性で空き/埋まりを判定
- *
- * 現在は日単位の空き状況（○/×）のみ取得
+ * TODO: 詳細時間帯取得の実装
+ * - 大人ドロップダウンで「1名」を選択
+ * - 「予約する」ボタンをクリック → モーダル表示
+ * - モーダル内の時間帯ボタンのdisabled属性で空き/埋まりを判定
  */
 
 const BASE_URL = 'https://spot-ly.jp/ja/hotels/176';
 
-// プラン情報（料金は公式サイト https://www.myaku-sauna.com/ より）
+// プラン情報
 const PLANS = [
   {
     name: '休 KYU（90分/定員3名）¥9,130〜',
     planTitle: '【休 -KYU-】90分プラン（午後）',
     timeSlots: ['11:30〜13:00', '13:30〜15:00', '15:30〜17:00', '17:30〜19:00', '19:30〜21:00'],
-    isNight: false,
-    capacity: 3
+    isNight: false
   },
   {
     name: '水 MIZU（night/定員2名）¥8,800〜',
     planTitle: '【水 -MIZU-】ナイトパック',
     timeSlots: ['1:00〜8:30'],
-    isNight: true,
-    capacity: 2
+    isNight: true
   },
   {
     name: '水 MIZU（90分午後/定員2名）¥6,600〜',
     planTitle: '【水 -MIZU-】90分プラン（午後）',
     timeSlots: ['13:00〜14:30', '15:00〜16:30', '17:00〜18:30', '19:00〜20:30', '21:00〜22:30', '23:00〜0:30'],
-    isNight: false,
-    capacity: 2
+    isNight: false
   },
   {
     name: '水 MIZU（90分午前/定員2名）¥6,600〜',
     planTitle: '【水 -MIZU-】90分プラン（午前）',
     timeSlots: ['9:00〜10:30', '11:00〜12:30'],
-    isNight: false,
-    capacity: 2
+    isNight: false
   },
   {
     name: '火 HI（night/定員4名）¥10,120〜',
     planTitle: '【火 -HI-】ナイトパック',
     timeSlots: ['0:30〜8:00'],
-    isNight: true,
-    capacity: 4
+    isNight: true
   },
   {
     name: '火 HI（90分午後/定員4名）¥7,150〜',
     planTitle: '【火 -HI-】90分プラン（午後）',
     timeSlots: ['14:30〜16:00', '16:30〜18:00', '18:30〜20:00', '20:30〜22:00', '22:30〜0:00'],
-    isNight: false,
-    capacity: 4
+    isNight: false
   },
   {
     name: '火 HI（90分午前/定員4名）¥7,150〜',
     planTitle: '【火 -HI-】90分プラン（午前）',
     timeSlots: ['8:30〜10:00', '10:30〜12:00', '12:30〜14:00'],
-    isNight: false,
-    capacity: 4
+    isNight: false
   }
 ];
 
@@ -87,9 +74,7 @@ async function scrape(browser) {
     const currentMonth = now.getMonth() + 1;
 
     // ページ全体をスクロールしてコンテンツを読み込む
-    await page.evaluate(() => {
-      window.scrollTo(0, 3000);
-    });
+    await page.evaluate(() => window.scrollTo(0, 3000));
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     // 各プランのカレンダーから○/×を取得
@@ -141,17 +126,12 @@ async function scrape(browser) {
       return results;
     }, PLANS);
 
-    if (planAvailability.error) {
-      console.log(`    → 脈: ${planAvailability.error}`);
-      return result;
-    }
-
     // 結果を処理
     for (const plan of PLANS) {
       const availability = planAvailability[plan.planTitle];
       if (!availability || !availability.availableDates) continue;
 
-      console.log(`    → ${plan.planTitle}: ${availability.availableDates.length}日`);
+      console.log(`    → ${plan.planTitle}: ${availability.availableDates.length}日分`);
 
       for (const dateInfo of availability.availableDates) {
         let year = currentYear;
@@ -175,10 +155,12 @@ async function scrape(browser) {
           result.dates[dateStr][plan.name] = [];
         }
 
-        // 日単位の空き状況のみ取得可能（詳細はログイン必要）
-        // 「空き枠あり」として表示し、実際の予約はspot-lyで確認
-        if (!result.dates[dateStr][plan.name].includes('空き枠あり')) {
-          result.dates[dateStr][plan.name].push('空き枠あり');
+        // 全時間帯を「空き枠あり」として記録
+        // TODO: 詳細時間帯取得を実装後、実際の空き時間帯に置き換える
+        for (const slot of plan.timeSlots) {
+          if (!result.dates[dateStr][plan.name].includes(slot)) {
+            result.dates[dateStr][plan.name].push(slot);
+          }
         }
       }
     }
