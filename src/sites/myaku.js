@@ -168,12 +168,10 @@ async function scrape(browser) {
           result.dates[dateStr][plan.name] = [];
         }
 
-        // 時間帯を追加（○がある日は全時間帯を表示）
-        // ※詳細な空き状況はログインが必要なため、○のある日は全スロット表示
-        for (const slot of plan.timeSlots) {
-          if (!result.dates[dateStr][plan.name].includes(slot)) {
-            result.dates[dateStr][plan.name].push(slot);
-          }
+        // 日単位の空き状況のみ取得可能（詳細はログイン必要）
+        // 「空き枠あり」として表示し、実際の予約はspot-lyで確認
+        if (!result.dates[dateStr][plan.name].includes('空き枠あり')) {
+          result.dates[dateStr][plan.name].push('空き枠あり');
         }
       }
     }
