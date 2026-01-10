@@ -960,12 +960,12 @@
       let capacity = '';
       let price = '';
 
-      // 時間と定員を抽出（night/定員2名 または 90分/120分/定員2名 または 120分/定員2名）
-      const metaMatch = name.match(/（([\d分\/]+|night)\/定員(\d+)名）/);
+      // 時間と定員を抽出（night/定員2名 または 90分午前/定員2名 または 90分/120分/定員2名 または 120分/定員2名）
+      const metaMatch = name.match(/（([\d分\/]+(?:午前|午後)?|night)\/定員(\d+)名）/);
       if (metaMatch) {
         time = metaMatch[1];
         capacity = metaMatch[2];
-        roomName = name.replace(/（(?:[\d分\/]+|night)\/定員\d+名）/, '');
+        roomName = name.replace(/（(?:[\d分\/]+(?:午前|午後)?|night)\/定員\d+名）/, '');
       }
 
       // 価格を抽出（¥6,000-8,000 や ¥6,600〜 形式に対応）
@@ -994,8 +994,88 @@
       }
 
       if (shouldGroup) {
-        // GIRAFFE/KUDOCHIの場合: 同じ部屋名をグループ化（通常プラン＋ナイトパック）
+        // 同じ部屋名をグループ化
         const groups = groupRoomsByBaseName(filteredRooms);
+
+        // MYAKU専用: 部屋ごとに時間帯をまとめて表示
+        if (facility.name.includes('MYAKU') || facility.name.includes('脈')) {
+          return Object.entries(groups).map(([baseName, variants]) => {
+            // 休 KYU の場合は宿泊リンクを表示
+            const isKyu = baseName.includes('休 KYU') || baseName.includes('休　KYU');
+            const kyuStayLink = isKyu && facility.kyuStayUrl
+              ? '<a href="' + facility.kyuStayUrl + '" target="_blank" class="stay-link">宿泊</a>'
+              : '';
+
+            // 定員と時間を取得（最初のvariantから）
+            const capacity = variants[0].formatted.capacity;
+            // 時間から「午前」「午後」を除去して統一
+            let duration = '90分';
+            for (const v of variants) {
+              if (v.formatted.time && v.formatted.time !== 'night') {
+                duration = v.formatted.time.replace(/午前|午後/g, '');
+                break;
+              }
+            }
+
+            // 全variantの時間枠をマージ（重複除去）
+            const allSlots = [];
+            const seenSlots = new Set();
+            for (const v of variants) {
+              if (v.availableSlots) {
+                for (const slot of v.availableSlots) {
+                  // "空き枠あり"は特別扱い
+                  if (slot === '空き枠あり') {
+                    if (!seenSlots.has(slot)) {
+                      seenSlots.add(slot);
+                      allSlots.push({ slot, isNight: v.isNight });
+                    }
+                  } else {
+                    const key = slot + (v.isNight ? '_night' : '');
+                    if (!seenSlots.has(key)) {
+                      seenSlots.add(key);
+                      allSlots.push({ slot, isNight: v.isNight });
+                    }
+                  }
+                }
+              }
+            }
+
+            // 時間順にソート
+            allSlots.sort((a, b) => {
+              if (a.slot === '空き枠あり') return -1;
+              if (b.slot === '空き枠あり') return 1;
+              const aTime = a.slot.match(/(\d{1,2}):(\d{2})/);
+              const bTime = b.slot.match(/(\d{1,2}):(\d{2})/);
+              if (aTime && bTime) {
+                const aMin = parseInt(aTime[1]) * 60 + parseInt(aTime[2]);
+                const bMin = parseInt(bTime[1]) * 60 + parseInt(bTime[2]);
+                return aMin - bMin;
+              }
+              return 0;
+            });
+
+            return `
+              <div class="room">
+                <div class="room-header">
+                  <span class="room-name">${baseName}</span>
+                  ${kyuStayLink}
+                  <div class="room-meta">
+                    <span class="time-label">${duration}</span>
+                    ${capacity ? '<span class="capacity-label">' + capacity + '人</span>' : ''}
+                  </div>
+                </div>
+                <div class="slots">
+                  ${allSlots.length > 0
+                    ? allSlots.map(s => '<span class="slot">' + formatTimeSlot(s.slot, s.isNight) + '</span>').join('')
+                    : '<span class="no-slots">空きなし</span>'
+                  }
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+
+        // GIRAFFE/KUDOCHIの場合: 同じ部屋名をグループ化（通常プラン＋ナイトパック）
         return Object.entries(groups).map(([baseName, variants]) => {
           // グループ内の定員チェック（GIRAFFEのみ）
           if (facility.name.includes('GIRAFFE')) {
