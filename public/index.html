@@ -1083,20 +1083,16 @@
 
             // ナイトパックがある場合は追加
             if (nightVariants.length > 0) {
-              // ナイトパックの時間帯を取得（スクレイパーから取得した固定時間）
-              // 例: "0:30〜8:00" (火 HI) or "1:00〜8:30" (水 MIZU)
-              const nightTimeLabel = nightSlots.length > 0 ? nightSlots[0] : '';
-
               html += `
                 <div class="room-variant variant-sub">
                   <div class="variant-meta">
                     ${nightPrice ? '<span class="room-price">' + nightPrice + '</span>' : ''}
-                    <span class="time-label night">${nightTimeLabel || 'night'}</span>
+                    <span class="time-label night">night</span>
                     ${capacity ? '<span class="capacity-label">' + capacity + '人</span>' : ''}
                   </div>
                   <div class="slots">
                     ${nightSlots.length > 0
-                      ? '<span class="slot">空き枠あり</span>'
+                      ? nightSlots.map(slot => '<span class="slot">' + slot + '</span>').join('')
                       : '<span class="no-slots">空きなし</span>'
                     }
                   </div>
