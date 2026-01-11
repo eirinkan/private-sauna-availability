@@ -55,7 +55,7 @@ function saveData(data) {
 async function launchBrowser() {
   console.log('Environment:', isCloudRun ? 'Cloud Run' : 'Local');
 
-  // 公式Puppeteer Dockerイメージ使用時はシンプルな設定で動作
+  // Cloud Run用にexecutablePathを明示的に設定
   const launchOptions = {
     headless: 'new',
     args: [
@@ -65,6 +65,12 @@ async function launchBrowser() {
       '--disable-gpu'
     ]
   };
+
+  // Cloud Run環境ではPUPPETEER_EXECUTABLE_PATHを使用
+  if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+    launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+    console.log('Using executablePath:', launchOptions.executablePath);
+  }
 
   console.log('Launching browser...');
 
