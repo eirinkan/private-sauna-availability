@@ -3,79 +3,10 @@
  * URL: https://spot-ly.jp/ja/hotels/176
  *
  * モーダル内の時間帯ボタンから詳細な空き状況を取得
- * AI Vision APIを使用してグレーアウトされたボタンを検出
+ * HTML要素のdisabled属性で判定
  */
-
-const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const BASE_URL = 'https://spot-ly.jp/ja/hotels/176';
-
-// Google AIクライアント
-let aiClient = null;
-function getAIClient() {
-  if (!aiClient && process.env.GOOGLE_API_KEY) {
-    aiClient = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
-  }
-  return aiClient;
-}
-
-/**
- * スクリーンショットからグレーアウトされたスロットを検出
- * @param {Buffer} screenshotBuffer - モーダルのスクリーンショット
- * @param {Array} timeSlots - 時間帯の配列
- * @returns {Array} グレーアウトされた位置の配列 [{dayIdx, slotIdx}]
- */
-async function detectDisabledSlotsFromImage(screenshotBuffer, timeSlots) {
-  const genAI = getAIClient();
-  if (!genAI) {
-    console.log('    → AI Vision: GOOGLE_API_KEY未設定');
-    return [];
-  }
-
-  const base64Image = screenshotBuffer.toString('base64');
-
-  const prompt = `この画像はサウナ施設の予約モーダルです。カレンダー形式で7日分の予約枠が表示されています。
-
-【判定ルール】
-- グレー（灰色）の背景色のボタン → 予約不可（disabled）
-- 白い背景のボタン → 予約可能（available）
-
-【出力形式】
-グレーアウトされている（予約不可の）ボタンの位置を以下のJSON形式で出力してください。
-列（column）は左から0〜6（日付）、行（row）は上から0〜${timeSlots.length - 1}（時間帯）です。
-
-例：左端の列の2行目と、右端の列の1行目がグレーの場合：
-{"disabled": [{"col": 0, "row": 1}, {"col": 6, "row": 0}]}
-
-グレーのボタンがない場合：
-{"disabled": []}
-
-JSONのみ出力：`;
-
-  try {
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
-      generationConfig: { temperature: 0.1 }
-    });
-
-    const result = await model.generateContent([
-      { inlineData: { mimeType: 'image/png', data: base64Image } },
-      prompt
-    ]);
-
-    const text = result.response.text();
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      return parsed.disabled || [];
-    }
-  } catch (error) {
-    console.log(`    → AI Vision エラー: ${error.message}`);
-  }
-
-  return [];
-}
 
 // プラン情報（順序は空室状況ページでの表示順）
 const PLANS = [
@@ -156,27 +87,84 @@ async function scrape(browser) {
       return result;
     }
 
+    // 最初に1回だけ、ページ上のプラン順序を確認
+    const pageOrder = await page.evaluate(() => {
+      const buttons = document.querySelectorAll('button.w-\\[144px\\]');
+      const order = [];
+      buttons.forEach((btn, idx) => {
+        // ボタンの親要素からプラン名を取得
+        let parent = btn.parentElement;
+        let planName = '';
+        while (parent && parent.tagName !== 'BODY') {
+          const text = parent.innerText || '';
+          // プラン名を含む要素を探す
+          const match = text.match(/【[^】]+】[^\n]+/);
+          if (match) {
+            planName = match[0].split('\n')[0];
+            break;
+          }
+          parent = parent.parentElement;
+        }
+        order.push({ idx, planName: planName.substring(0, 30) });
+      });
+      return order;
+    });
+    console.log('    → ページ上のプラン順序:', JSON.stringify(pageOrder.slice(0, 10)));
+
     // 各プランを処理
     for (const plan of PLANS) {
       console.log(`    → ${plan.planTitle}: スクレイピング中...`);
 
       try {
-        // ページ内の全React Selectと予約するボタンを取得
-        const planCount = await page.evaluate(() => {
+        // 古いモーダルをDOMから削除
+        await page.evaluate(() => {
+          // 「日時を選ぶ」を含むモーダル要素を探して削除
+          const allDivs = document.querySelectorAll('div');
+          for (const div of allDivs) {
+            if (div.innerText && div.innerText.includes('日時を選ぶ') && div.innerText.includes('この日時で予約する')) {
+              const style = window.getComputedStyle(div);
+              // 固定位置のモーダルのみ削除
+              if (style.position === 'fixed' || style.position === 'absolute') {
+                div.remove();
+              }
+            }
+          }
+        });
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        // ページ上でこのプラン名に対応するインデックスを検索
+        // 午前/午後を区別するため、より長いマッチングを使用
+        let matchedEntry = pageOrder.find(p => p.planName.includes(plan.planTitle.substring(0, 20)));
+        if (!matchedEntry) {
+          // 20文字でマッチしない場合、15文字で再試行（短いプラン名対応）
+          matchedEntry = pageOrder.find(p => p.planName.includes(plan.planTitle.substring(0, 15)));
+        }
+        const planIndex = matchedEntry ? matchedEntry.idx : plan.index;
+
+        // デバッグ: インデックスが正しいか確認
+        if (matchedEntry) {
+          console.log(`      インデックス: ${planIndex} (検出: "${matchedEntry.planName.substring(0, 25)}")`);
+        }
+
+        // まず全プランカードの情報を取得
+        const planInfo = await page.evaluate((idx) => {
           const selectContainers = document.querySelectorAll('.css-b62m3t-container');
           const reserveButtons = document.querySelectorAll('button.w-\\[144px\\]');
-          return { selects: selectContainers.length, buttons: reserveButtons.length };
-        });
+          return {
+            totalSelects: selectContainers.length,
+            totalButtons: reserveButtons.length,
+            targetSelectIdx: idx * 2,
+            targetButtonIdx: idx
+          };
+        }, planIndex);
 
-        if (plan.index * 2 >= planCount.selects) {
-          console.log(`    → ${plan.planTitle}: ドロップダウンが見つかりません`);
+        if (planIndex >= planInfo.totalButtons) {
+          console.log(`    → ${plan.planTitle}: ボタンインデックス超過 (${planIndex}/${planInfo.totalButtons})`);
           continue;
         }
 
-        // このプランの大人ドロップダウンのインデックス（各プランに2つ: 大人と子供）
-        const selectIndex = plan.index * 2;
-
         // ドロップダウンをクリックして1名を選択
+        const selectIndex = planIndex * 2;
         await page.evaluate((idx) => {
           const selectContainers = document.querySelectorAll('.css-b62m3t-container');
           if (selectContainers[idx]) {
@@ -201,17 +189,46 @@ async function scrape(browser) {
         });
         await new Promise(resolve => setTimeout(resolve, 500));
 
-        // 予約するボタンをクリック
-        const buttonClicked = await page.evaluate((idx) => {
+        // 予約するボタンをクリック（scrollIntoViewで確実に表示）
+        const buttonClicked = await page.evaluate((idx, expectedPlanTitle) => {
           const reserveButtons = document.querySelectorAll('button.w-\\[144px\\]');
-          if (reserveButtons[idx] && !reserveButtons[idx].disabled) {
-            reserveButtons[idx].click();
-            return true;
-          }
-          return false;
-        }, plan.index);
+          const btn = reserveButtons[idx];
 
-        if (!buttonClicked) {
+          if (btn && !btn.disabled) {
+            // このボタンの親要素からプラン名を確認
+            let parent = btn.parentElement;
+            let foundPlanName = '';
+            while (parent && parent.tagName !== 'BODY') {
+              const text = parent.innerText || '';
+              const match = text.match(/【[^】]+】[^\n]+/);
+              if (match) {
+                foundPlanName = match[0].split('\n')[0];
+                break;
+              }
+              parent = parent.parentElement;
+            }
+
+            btn.scrollIntoView({ block: 'center' });
+            btn.click();
+            return {
+              clicked: true,
+              buttonIndex: idx,
+              foundPlanName: foundPlanName.substring(0, 30),
+              expectedPlanTitle: expectedPlanTitle
+            };
+          }
+          return { clicked: false };
+        }, planIndex, plan.planTitle);
+
+        // デバッグ: クリックしたボタンのプラン名を出力
+        if (buttonClicked.clicked && buttonClicked.foundPlanName) {
+          const isCorrect = buttonClicked.foundPlanName.includes(plan.planTitle.substring(0, 10));
+          if (!isCorrect) {
+            console.log(`      [警告] ボタン${buttonClicked.buttonIndex}は「${buttonClicked.foundPlanName}」（期待: ${plan.planTitle}）`);
+          }
+        }
+
+        if (!buttonClicked.clicked) {
           console.log(`    → ${plan.planTitle}: ボタンが無効です`);
           continue;
         }
@@ -219,34 +236,188 @@ async function scrape(browser) {
         // モーダルが開くのを待つ
         await new Promise(resolve => setTimeout(resolve, 2000));
 
-        // モーダルが完全に読み込まれるまで待機
-        // 「日時を選ぶ」テキストを含むモーダルが表示されるのを待つ
+        // 期待する時間帯を含むモーダルが表示されるまで待機
+        const expectedTime = plan.timeSlots[0].split('〜')[0].trim();
         let modalReady = false;
-        for (let i = 0; i < 10; i++) {
-          modalReady = await page.evaluate(() => {
-            // モーダルのタイトル「日時を選ぶ」を探す
-            const modalTitle = Array.from(document.querySelectorAll('*')).find(
-              el => el.innerText && el.innerText.includes('日時を選ぶ')
-            );
-            return !!modalTitle;
-          });
+        for (let i = 0; i < 15; i++) {
+          modalReady = await page.evaluate((expTime) => {
+            // モーダル内に期待する時間帯があるか確認
+            const allDivs = document.querySelectorAll('div');
+            for (const div of allDivs) {
+              const text = div.innerText || '';
+              if (text.includes('日時を選ぶ') && text.includes('この日時で予約する')) {
+                // この時間帯のボタンがあるか
+                const buttons = div.querySelectorAll('button');
+                for (const btn of buttons) {
+                  const btnText = btn.innerText.replace(/\n/g, ' ').trim();
+                  // 時間を数値で比較（0:30 と 00:30 の違いに対応）
+                  const match = btnText.match(/^(\d{1,2}):(\d{2})/);
+                  if (match) {
+                    const btnHour = parseInt(match[1]);
+                    const btnMin = parseInt(match[2]);
+                    const expMatch = expTime.match(/(\d{1,2}):(\d{2})/);
+                    if (expMatch) {
+                      const expHour = parseInt(expMatch[1]);
+                      const expMin = parseInt(expMatch[2]);
+                      if (btnHour === expHour && btnMin === expMin) {
+                        return true;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            return false;
+          }, expectedTime);
           if (modalReady) break;
           await new Promise(r => setTimeout(r, 500));
         }
         if (!modalReady) {
-          console.log(`    → ${plan.planTitle}: モーダルが開きませんでした`);
+          console.log(`    → ${plan.planTitle}: 正しいモーダルが開きませんでした（期待: ${expectedTime}）`);
+          // ESCで閉じて次へ
+          await page.keyboard.press('Escape');
+          await new Promise(r => setTimeout(r, 1000));
           continue;
         }
 
-        // モーダルの描画完了を待機
-        await new Promise(r => setTimeout(r, 2000));
+        // disabled属性がDOMに反映されるまで待機
+        // Reactがdisabled属性を設定するまで待つ
+        await page.waitForFunction(() => {
+          const buttons = document.querySelectorAll('button[class*="flex-col"]');
+          // 時間帯ボタンの中でdisabled=trueのものが1つでもあれば準備完了
+          return Array.from(buttons).some(btn => btn.disabled === true);
+        }, { timeout: 5000 }).catch(() => {
+          // タイムアウトしても続行（すべて空きの可能性）
+          console.log(`    → ${plan.planTitle}: disabled待機タイムアウト（全て空きの可能性）`);
+        });
 
-        // スクリーンショットを撮影
-        const screenshotBuffer = await page.screenshot({ encoding: 'binary' });
+        // 追加の待機（DOM安定化）
+        await new Promise(r => setTimeout(r, 500));
 
-        // AI Vision APIで無効スロットを検出
-        const disabledSlots = await detectDisabledSlotsFromImage(screenshotBuffer, plan.timeSlots);
-        console.log(`    → AI Vision: ${disabledSlots.length}個のdisabledスロット検出`);
+        // DOMから直接disabled状態を取得
+        // モーダル内の時間帯ボタンのみを取得
+        const buttonStates = await page.evaluate((planTitle, expectedTimeSlot) => {
+          const results = [];
+
+          // モーダルを特定：最後に追加されたモーダルを使う
+          // DOMの順序で後ろにあるものが新しいモーダル
+          const allDivs = Array.from(document.querySelectorAll('div'));
+
+          // 「日時を選ぶ」を含むモーダル候補を全て取得
+          const modalCandidates = allDivs.filter(div => {
+            const text = div.innerText || '';
+            return text.includes('日時を選ぶ') &&
+                   text.includes('この日時で予約する');
+          });
+
+          // 最後（最新）のモーダルを使用
+          let modal = null;
+          for (let i = modalCandidates.length - 1; i >= 0; i--) {
+            const candidate = modalCandidates[i];
+            const text = candidate.innerText || '';
+            // このプランのモーダルか確認
+            if (text.includes(planTitle)) {
+              modal = candidate;
+              break;
+            }
+          }
+
+          // プラン名が見つからない場合、最後のモーダルを使用
+          if (!modal && modalCandidates.length > 0) {
+            modal = modalCandidates[modalCandidates.length - 1];
+          }
+
+          if (!modal) {
+            return { error: 'モーダルが見つかりません', planTitle };
+          }
+
+          // モーダル内の時間帯ボタンを取得
+          const allButtons = modal.querySelectorAll('button');
+          const timePattern = /^\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}$/;
+
+          // 期待される時間帯の最初のパターンを抽出（例：01:00 or 1:00）
+          const expectedStartTime = expectedTimeSlot.split('〜')[0].trim();
+          // 時間を分に変換する関数
+          const timeToMinutes = (timeStr) => {
+            const match = timeStr.match(/(\d{1,2}):(\d{2})/);
+            if (match) {
+              return parseInt(match[1]) * 60 + parseInt(match[2]);
+            }
+            return -1;
+          };
+          const expectedMinutes = timeToMinutes(expectedStartTime);
+
+          let foundExpectedTime = false;
+
+          allButtons.forEach((btn) => {
+            const text = btn.innerText.replace(/\n/g, ' ').trim();
+            if (timePattern.test(text)) {
+              // 期待する時間帯かチェック（数値で比較）
+              const startTime = text.split('-')[0].trim();
+              const actualMinutes = timeToMinutes(startTime);
+              if (actualMinutes === expectedMinutes) {
+                foundExpectedTime = true;
+              }
+
+              const isDisabled = btn.disabled === true;
+
+              let opacityDisabled = false;
+              if (!isDisabled) {
+                const style = window.getComputedStyle(btn);
+                opacityDisabled = parseFloat(style.opacity) < 0.9;
+              }
+
+              results.push({
+                index: results.length,
+                disabled: isDisabled || opacityDisabled,
+                text: text
+              });
+            }
+          });
+
+          // 期待する時間帯が見つからない場合はエラー
+          if (!foundExpectedTime && results.length > 0) {
+            return {
+              error: '時間帯不一致',
+              expected: expectedTimeSlot,
+              found: results.map(r => r.text).slice(0, 3)
+            };
+          }
+
+          return results;
+        }, plan.planTitle, plan.timeSlots[0]);
+
+        // エラーチェック
+        if (buttonStates.error) {
+          console.log(`    → ${plan.planTitle}: ${buttonStates.error}`);
+          if (buttonStates.expected) {
+            console.log(`      期待: ${buttonStates.expected}, 検出: ${JSON.stringify(buttonStates.found)}`);
+          }
+          // ESCでモーダルを閉じて次へ
+          await page.keyboard.press('Escape');
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          continue;
+        }
+
+        // 日付と時間枠のマッピング
+        const slotsPerDay = plan.timeSlots.length;
+        const disabledSlots = [];
+
+        for (const btn of buttonStates) {
+          if (btn.disabled) {
+            const col = Math.floor(btn.index / slotsPerDay); // 日付インデックス
+            const row = btn.index % slotsPerDay; // 時間枠インデックス
+            disabledSlots.push({ col, row });
+          }
+        }
+
+        // デバッグ: ボタン状態の詳細を出力
+        console.log(`    → DOM検出: ${buttonStates.length}個のボタン, ${disabledSlots.length}個がdisabled`);
+        if (buttonStates.length <= 10) {
+          buttonStates.forEach((btn, i) => {
+            console.log(`      [${i}] disabled=${btn.disabled} text="${btn.text}"`);
+          });
+        }
 
         // 日付ヘッダーを取得
         const dateInfo = await page.evaluate(() => {
@@ -287,7 +458,6 @@ async function scrape(browser) {
 
         // 空きスロットを計算（全スロット - 無効スロット）
         const availableSlots = [];
-        const slotsPerDay = plan.timeSlots.length;
         const numDays = Math.min(dates.length, 7);
 
         for (let dayIdx = 0; dayIdx < numDays; dayIdx++) {
@@ -305,9 +475,47 @@ async function scrape(browser) {
 
         const availability = { availableSlots };
 
-        // モーダルを閉じる（×ボタンまたはESC）
-        await page.keyboard.press('Escape');
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // モーダルを閉じる（×ボタンをクリック）
+        const modalClosed = await page.evaluate(() => {
+          // ×ボタンを探す（モーダル右上）
+          const closeButtons = document.querySelectorAll('button');
+          for (const btn of closeButtons) {
+            if (btn.innerText === '×' || btn.innerText === '✕') {
+              btn.click();
+              return true;
+            }
+          }
+          // SVGの×アイコンを持つボタン
+          const svgCloseBtn = document.querySelector('button svg[stroke="currentColor"]');
+          if (svgCloseBtn) {
+            svgCloseBtn.closest('button').click();
+            return true;
+          }
+          return false;
+        });
+
+        if (!modalClosed) {
+          // フォールバック: ESCキー
+          await page.keyboard.press('Escape');
+        }
+
+        // モーダルがDOMから削除されるまで待機
+        await page.waitForFunction((planTitle) => {
+          // このプラン名を含むモーダルがなくなるまで待つ
+          const elements = document.querySelectorAll('*');
+          for (const el of elements) {
+            if (el.innerText && el.innerText.includes('日時を選ぶ') && el.innerText.includes(planTitle)) {
+              // モーダルがまだ存在する
+              const style = window.getComputedStyle(el);
+              if (style.display !== 'none' && style.visibility !== 'hidden') {
+                return false;
+              }
+            }
+          }
+          return true;
+        }, { timeout: 5000 }, plan.planTitle).catch(() => {});
+
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         // 結果を処理
         let addedCount = 0;
