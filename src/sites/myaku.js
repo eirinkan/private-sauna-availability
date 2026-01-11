@@ -81,11 +81,29 @@ async function scrape(browser) {
 
     console.log(`    → 脈: 空室状況ページに直接アクセス`);
     await page.goto(directUrl, { waitUntil: 'networkidle2', timeout: 60000 });
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    await new Promise(resolve => setTimeout(resolve, 3000));
 
     // ページの読み込み確認
     const pageTitle = await page.title();
     console.log(`    → 脈: ページタイトル = "${pageTitle}"`);
+
+    // ボタンが表示されるまで待機（最大30秒）
+    try {
+      await page.waitForSelector('button.w-\\[144px\\]', { timeout: 30000 });
+      console.log('    → 脈: 予約ボタンを検出');
+    } catch (e) {
+      console.log('    → 脈: 予約ボタンが見つかりません（waitForSelector timeout）');
+      // ページの状態をデバッグ出力
+      const debugInfo = await page.evaluate(() => {
+        return {
+          bodyLength: document.body.innerHTML.length,
+          buttonCount: document.querySelectorAll('button').length,
+          hasReactRoot: !!document.querySelector('#__next') || !!document.querySelector('#root'),
+          url: window.location.href
+        };
+      });
+      console.log('    → 脈: ページ状態:', JSON.stringify(debugInfo));
+    }
 
     // 最初に1回だけ、ページ上のプラン順序を確認
     const pageOrder = await page.evaluate(() => {
@@ -111,26 +129,57 @@ async function scrape(browser) {
     });
     console.log('    → ページ上のプラン順序:', JSON.stringify(pageOrder.slice(0, 10)));
 
-    // プラン情報が見つからない場合はエラー
+    // プラン情報が見つからない場合、代替セレクタを試す
     if (pageOrder.length === 0) {
-      console.log('    → 脈: プラン情報が見つかりません（セレクタ: button.w-[144px]）');
-      // ページのHTMLをデバッグ出力（ボタン要素のクラス名を確認）
-      const buttonInfo = await page.evaluate(() => {
+      console.log('    → 脈: button.w-[144px] で見つかりません、代替セレクタを試行...');
+
+      // 代替: 「予約する」テキストを含むボタンを検索
+      const altPageOrder = await page.evaluate(() => {
         const allButtons = document.querySelectorAll('button');
-        const buttonClasses = [];
+        const order = [];
         allButtons.forEach((btn, idx) => {
-          if (idx < 10) {
-            buttonClasses.push({
-              idx,
-              classes: btn.className.substring(0, 100),
-              text: btn.innerText.substring(0, 30).replace(/\n/g, ' ')
-            });
+          const text = btn.innerText.trim();
+          if (text === '予約する') {
+            let parent = btn.parentElement;
+            let planName = '';
+            while (parent && parent.tagName !== 'BODY') {
+              const parentText = parent.innerText || '';
+              const match = parentText.match(/【[^】]+】[^\n]+/);
+              if (match) {
+                planName = match[0].split('\n')[0];
+                break;
+              }
+              parent = parent.parentElement;
+            }
+            order.push({ idx, planName: planName.substring(0, 30), originalIdx: order.length });
           }
         });
-        return buttonClasses;
+        return order;
       });
-      console.log('    → 脈: ボタン要素の情報:', JSON.stringify(buttonInfo.slice(0, 5)));
-      return result;
+
+      if (altPageOrder.length > 0) {
+        console.log('    → 脈: 代替セレクタで検出:', JSON.stringify(altPageOrder.slice(0, 5)));
+        // 代替セレクタを使用して継続（pageOrderを上書き）
+        pageOrder.push(...altPageOrder.map(p => ({ idx: p.originalIdx, planName: p.planName })));
+      } else {
+        // それでも見つからない場合はデバッグ情報を出力
+        const buttonInfo = await page.evaluate(() => {
+          const allButtons = document.querySelectorAll('button');
+          const buttonClasses = [];
+          allButtons.forEach((btn, idx) => {
+            if (idx < 15) {
+              buttonClasses.push({
+                idx,
+                classes: btn.className.substring(0, 100),
+                text: btn.innerText.substring(0, 30).replace(/\n/g, ' ')
+              });
+            }
+          });
+          return buttonClasses;
+        });
+        console.log('    → 脈: ボタン要素の情報:', JSON.stringify(buttonInfo));
+        return result;
+      }
     }
 
     // 各プランを処理
