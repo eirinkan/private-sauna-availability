@@ -90,6 +90,101 @@ app.get('/api/pricing', (req, res) => {
   res.json(PRICING);
 });
 
+// API: 脈専用デバッグエンドポイント
+app.get('/api/debug/myaku', async (req, res) => {
+  const puppeteer = require('puppeteer');
+  const startTime = Date.now();
+  const results = { steps: [], errors: [] };
+
+  let browser;
+  try {
+    results.steps.push({ step: 'start', time: 0 });
+
+    // ブラウザ起動
+    const isCloudRun = !!process.env.K_SERVICE;
+    const launchOptions = {
+      headless: 'new',
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
+    };
+    if (isCloudRun) {
+      launchOptions.executablePath = '/usr/bin/chromium';
+    }
+
+    browser = await puppeteer.launch(launchOptions);
+    results.steps.push({ step: 'browser_launched', time: Date.now() - startTime });
+
+    const page = await browser.newPage();
+    await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36');
+    await page.setViewport({ width: 1280, height: 900 });
+    results.steps.push({ step: 'page_created', time: Date.now() - startTime });
+
+    // 日付パラメータ付きURLにアクセス
+    const now = new Date();
+    const checkinDate = now.toISOString().split('T')[0];
+    const checkoutDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const url = `https://spot-ly.jp/ja/hotels/176?checkinDatetime=${checkinDate}+00%3A00%3A00&checkoutDatetime=${checkoutDate}+00%3A00%3A00`;
+
+    results.url = url;
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
+    results.steps.push({ step: 'page_loaded', time: Date.now() - startTime });
+
+    await new Promise(r => setTimeout(r, 5000));
+    results.steps.push({ step: 'wait_5s_complete', time: Date.now() - startTime });
+
+    // ページ情報取得
+    const pageTitle = await page.title();
+    results.pageTitle = pageTitle;
+
+    // ボタン情報取得
+    const buttonInfo = await page.evaluate(() => {
+      const allButtons = document.querySelectorAll('button');
+      const w144Buttons = document.querySelectorAll('button.w-\\[144px\\]');
+      const reserveButtons = [];
+
+      allButtons.forEach((btn, idx) => {
+        if (btn.innerText.trim() === '予約する') {
+          reserveButtons.push({
+            idx,
+            classes: btn.className.substring(0, 80),
+            text: btn.innerText.substring(0, 20)
+          });
+        }
+      });
+
+      return {
+        totalButtons: allButtons.length,
+        w144Count: w144Buttons.length,
+        reserveButtonsFound: reserveButtons.length,
+        reserveButtons: reserveButtons.slice(0, 5),
+        firstFewButtons: Array.from(allButtons).slice(0, 10).map((b, i) => ({
+          idx: i,
+          classes: b.className.substring(0, 50),
+          text: b.innerText.substring(0, 20).replace(/\n/g, ' ')
+        }))
+      };
+    });
+    results.buttonInfo = buttonInfo;
+    results.steps.push({ step: 'button_analysis', time: Date.now() - startTime });
+
+    // HTML長さ確認
+    const htmlLength = await page.evaluate(() => document.body.innerHTML.length);
+    results.htmlLength = htmlLength;
+
+    await browser.close();
+    results.steps.push({ step: 'browser_closed', time: Date.now() - startTime });
+
+    results.success = true;
+    results.totalTime = Date.now() - startTime;
+    res.json(results);
+  } catch (error) {
+    if (browser) await browser.close().catch(() => {});
+    results.success = false;
+    results.error = error.message;
+    results.totalTime = Date.now() - startTime;
+    res.status(500).json(results);
+  }
+});
+
 // サーバー起動
 app.listen(PORT, () => {
   console.log(`サーバー起動: http://localhost:${PORT}`);
