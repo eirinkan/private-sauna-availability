@@ -68,24 +68,24 @@ async function scrape(browser) {
 
   try {
     console.log('    → 脈: アクセス中...');
-    await page.goto(BASE_URL, { waitUntil: 'networkidle2', timeout: 60000 });
-    await new Promise(resolve => setTimeout(resolve, 3000));
 
     const result = { dates: {} };
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1;
 
-    // 空室状況ページへ移動
-    await page.click('button.bg-black');
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    // 日付パラメータ付きURLに直接アクセス（CLAUDE.md推奨の方法）
+    const checkinDate = now.toISOString().split('T')[0];
+    const checkoutDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const directUrl = `${BASE_URL}?checkinDatetime=${checkinDate}+00%3A00%3A00&checkoutDatetime=${checkoutDate}+00%3A00%3A00`;
 
-    // 現在のURL確認（空室状況ページに移動していることを確認）
-    const currentUrl = page.url();
-    if (!currentUrl.includes('checkinDatetime')) {
-      console.log('    → 脈: 空室状況ページへの移動に失敗');
-      return result;
-    }
+    console.log(`    → 脈: 空室状況ページに直接アクセス`);
+    await page.goto(directUrl, { waitUntil: 'networkidle2', timeout: 60000 });
+    await new Promise(resolve => setTimeout(resolve, 5000));
+
+    // ページの読み込み確認
+    const pageTitle = await page.title();
+    console.log(`    → 脈: ページタイトル = "${pageTitle}"`);
 
     // 最初に1回だけ、ページ上のプラン順序を確認
     const pageOrder = await page.evaluate(() => {
