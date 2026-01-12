@@ -3,6 +3,7 @@
  * URL: https://spot-ly.jp/ja/hotels/176
  *
  * カレンダーの◯✕マークから空き状況を直接取得
+ * 共有のPuppeteerブラウザを使用（Playwrightは使用しない）
  *
  * DOM構造:
  * <div class="flex divide-x divide-gray-300 tracking-wide">
@@ -22,9 +23,6 @@
  * 5: 火 HI 90分午後
  * 6: 火 HI 90分午前
  */
-
-const { chromium } = require('playwright');
-const fs = require('fs');
 
 const BASE_URL = 'https://spot-ly.jp/ja/hotels/176';
 
@@ -63,62 +61,14 @@ const PLANS = [
 ];
 
 async function scrape(puppeteerBrowser) {
-  // Playwright独自のブラウザを起動
-  // Docker/Cloud Run環境ではシステムのchromiumを使用
+  // 共有のPuppeteerブラウザを使用（Playwrightではなく）
+  console.log('    → 脈: 共有Puppeteerブラウザを使用');
 
-  // 複数の可能なChromiumパスをチェック
-  const chromiumPaths = [
-    '/usr/bin/chromium',
-    '/usr/bin/chromium-browser',
-    '/usr/bin/google-chrome',
-    '/usr/bin/google-chrome-stable'
-  ];
-
-  let chromiumPath = null;
-  for (const path of chromiumPaths) {
-    if (fs.existsSync(path)) {
-      chromiumPath = path;
-      break;
-    }
-  }
-
-  const isCloudRun = process.env.K_SERVICE !== undefined;
-  const chromiumExists = chromiumPath !== null;
-
-  console.log(`    → 脈: 環境検出 - K_SERVICE=${process.env.K_SERVICE}, isCloudRun=${isCloudRun}, chromiumExists=${chromiumExists}, chromiumPath=${chromiumPath}`);
-
-  const launchOptions = {
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-  };
-
-  // システムのchromiumが存在する場合は使用（Docker/Cloud Run環境）
-  // 環境変数からのパスも確認
-  const envChromiumPath = process.env.PUPPETEER_EXECUTABLE_PATH || process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
-  if (envChromiumPath && fs.existsSync(envChromiumPath)) {
-    launchOptions.executablePath = envChromiumPath;
-    console.log(`    → 脈: 環境変数からのChromiumを使用 - ${envChromiumPath}`);
-  } else if (chromiumExists) {
-    launchOptions.executablePath = chromiumPath;
-    console.log(`    → 脈: システムChromiumを使用 - ${chromiumPath}`);
-  } else {
-    console.log(`    → 脈: Playwrightのバンドル版Chromiumを使用`);
-  }
-
-  console.log(`    → 脈: Playwright起動オプション:`, JSON.stringify(launchOptions));
-
-  const browser = await chromium.launch(launchOptions);
-
-  const context = await browser.newContext({
-    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    viewport: { width: 1280, height: 900 }
-  });
-
-  const page = await context.newPage();
+  const page = await puppeteerBrowser.newPage();
+  await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+  await page.setViewport({ width: 1280, height: 900 });
 
   try {
-    console.log('    → 脈: Playwrightでアクセス中...');
-
     const result = { dates: {} };
     const now = new Date();
     const currentYear = now.getFullYear();
@@ -130,8 +80,8 @@ async function scrape(puppeteerBrowser) {
     const directUrl = `${BASE_URL}?checkinDatetime=${checkinDate}+00%3A00%3A00&checkoutDatetime=${checkoutDate}+00%3A00%3A00`;
 
     console.log('    → 脈: 空室状況ページに直接アクセス');
-    await page.goto(directUrl, { waitUntil: 'networkidle', timeout: 60000 });
-    await page.waitForTimeout(3000);
+    await page.goto(directUrl, { waitUntil: 'networkidle2', timeout: 60000 });
+    await new Promise(r => setTimeout(r, 3000));
 
     // ページの読み込み確認
     const pageTitle = await page.title();
@@ -148,7 +98,7 @@ async function scrape(puppeteerBrowser) {
         if (cls.indexOf('divide-x') >= 0 && cls.indexOf('divide-gray') >= 0) {
           const children = div.querySelectorAll(':scope > div');
           // 8日分のカレンダー（または7日分）
-        if (children.length >= 7 && children.length <= 8) {
+          if (children.length >= 7 && children.length <= 8) {
             const firstChildText = children[0].innerText || '';
             // 日付を含むもののみ（1/11のような形式）
             if (firstChildText.indexOf('/') >= 0) {
@@ -165,6 +115,7 @@ async function scrape(puppeteerBrowser) {
                     calendarData.push({
                       month: parseInt(dateMatch[1]),
                       day: parseInt(dateMatch[2]),
+                      // ◯（U+25EF, U+25CB）、〇（U+3007）、O（アルファベット）をチェック
                       available: status === '\u25EF' || status === '\u25CB' || status === 'O' || status === '\u3007'
                     });
                   }
@@ -232,8 +183,6 @@ async function scrape(puppeteerBrowser) {
 
   } finally {
     await page.close();
-    await context.close();
-    await browser.close();
   }
 }
 
