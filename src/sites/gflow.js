@@ -78,20 +78,29 @@ async function scrape(browser) {
           await page.evaluate(el => el.scrollIntoView({ block: 'center' }), radio);
           await new Promise(resolve => setTimeout(resolve, 500));
 
-          // Vue.js対応: checked状態を変更し、各種イベントをディスパッチ
+          // Vue.js対応: ネイティブセッターを使用してv-modelバインディングをトリガー
           await page.evaluate(el => {
-            // チェック状態を設定
-            el.checked = true;
+            // 方法1: ネイティブのinputセッターを使用（React/Vue対応）
+            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+              window.HTMLInputElement.prototype, 'checked'
+            )?.set;
 
-            // 複数のイベントをディスパッチしてVue.jsのリアクティビティをトリガー
-            el.dispatchEvent(new Event('input', { bubbles: true }));
-            el.dispatchEvent(new Event('change', { bubbles: true }));
-            el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            if (nativeInputValueSetter) {
+              nativeInputValueSetter.call(el, true);
+            } else {
+              el.checked = true;
+            }
 
-            // 親labelも念のためクリック
+            // 方法2: 各種イベントをディスパッチ
+            const inputEvent = new Event('input', { bubbles: true, cancelable: true });
+            const changeEvent = new Event('change', { bubbles: true, cancelable: true });
+            el.dispatchEvent(inputEvent);
+            el.dispatchEvent(changeEvent);
+
+            // 方法3: 親labelにもイベントを伝播
             const label = el.closest('label');
             if (label) {
-              label.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+              label.click();
             }
           }, radio);
 
@@ -101,23 +110,35 @@ async function scrape(browser) {
         }
       }
 
-      // 方法2: label要素をクリック（フォールバック）
+      // 方法2: label要素をマウス座標でクリック（フォールバック）
       if (!clicked) {
         const labelHandles = await page.$$('label.box-room');
         for (const label of labelHandles) {
           const text = await page.evaluate(el => el.textContent || '', label);
           if (text.includes(room.keyword + 'の部屋') || text.includes(room.altKeyword)) {
+            // 要素を可視化してスクロール
             await page.evaluate(el => el.scrollIntoView({ block: 'center' }), label);
             await new Promise(resolve => setTimeout(resolve, 500));
 
-            try {
-              await label.click();
+            // 要素の座標を取得してマウスでクリック（最も確実な方法）
+            const box = await label.boundingBox();
+            if (box) {
+              const x = box.x + box.width / 2;
+              const y = box.y + box.height / 2;
+              await page.mouse.click(x, y);
               clicked = true;
-              console.log(`    → OOO ${room.keyword}: labelクリック成功`);
-            } catch (e) {
-              await page.evaluate(el => el.click(), label);
-              clicked = true;
-              console.log(`    → OOO ${room.keyword}: label JSクリック成功`);
+              console.log(`    → OOO ${room.keyword}: マウスクリック成功 (${Math.round(x)}, ${Math.round(y)})`);
+            } else {
+              // フォールバック: 通常のクリック
+              try {
+                await label.click();
+                clicked = true;
+                console.log(`    → OOO ${room.keyword}: labelクリック成功`);
+              } catch (e) {
+                await page.evaluate(el => el.click(), label);
+                clicked = true;
+                console.log(`    → OOO ${room.keyword}: label JSクリック成功`);
+              }
             }
             break;
           }
