@@ -61,37 +61,65 @@ async function scrape(browser) {
       const room = ROOMS[roomIndex];
       console.log(`    → OOO: ${room.keyword}をスクレイピング中...`);
 
-      // 部屋カードをクリック
-      const clickResult = await page.evaluate((keyword, altKeyword) => {
-        // label.box-room 内から対象の部屋を探す
-        const labels = document.querySelectorAll('label.box-room');
-        for (const label of labels) {
-          const text = label.textContent || '';
-          // 日本語キーワードまたは英語キーワードでマッチ
-          if (text.includes(keyword + 'の部屋') || text.includes(altKeyword)) {
-            label.click();
-            return { clicked: true, method: 'label', text: text.substring(0, 50) };
+      // 部屋カードをPuppeteerネイティブのclickで選択
+      // input[type="radio"]を直接クリックする（label経由ではなく）
+      let clicked = false;
+
+      // 方法1: input要素を直接クリック
+      const radioHandles = await page.$$('input[type="radio"]');
+      for (const radio of radioHandles) {
+        const parentText = await page.evaluate(el => {
+          const parent = el.closest('label') || el.parentElement;
+          return parent ? parent.textContent : '';
+        }, radio);
+
+        if (parentText.includes(room.keyword) || parentText.includes(room.altKeyword)) {
+          // スクロールして可視化
+          await page.evaluate(el => el.scrollIntoView({ block: 'center' }), radio);
+          await new Promise(resolve => setTimeout(resolve, 500));
+
+          // クリック（複数の方法を試す）
+          try {
+            await radio.click();
+            clicked = true;
+            console.log(`    → OOO ${room.keyword}: radioクリック成功`);
+          } catch (e) {
+            // フォールバック: JavaScript経由でクリック
+            await page.evaluate(el => el.click(), radio);
+            clicked = true;
+            console.log(`    → OOO ${room.keyword}: radio JSクリック成功`);
+          }
+          break;
+        }
+      }
+
+      // 方法2: label要素をクリック（フォールバック）
+      if (!clicked) {
+        const labelHandles = await page.$$('label.box-room');
+        for (const label of labelHandles) {
+          const text = await page.evaluate(el => el.textContent || '', label);
+          if (text.includes(room.keyword + 'の部屋') || text.includes(room.altKeyword)) {
+            await page.evaluate(el => el.scrollIntoView({ block: 'center' }), label);
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            try {
+              await label.click();
+              clicked = true;
+              console.log(`    → OOO ${room.keyword}: labelクリック成功`);
+            } catch (e) {
+              await page.evaluate(el => el.click(), label);
+              clicked = true;
+              console.log(`    → OOO ${room.keyword}: label JSクリック成功`);
+            }
+            break;
           }
         }
+      }
 
-        // input[type="radio"] を直接探す
-        const radios = document.querySelectorAll('input[type="radio"]');
-        for (const radio of radios) {
-          const parent = radio.closest('label') || radio.parentElement;
-          const text = parent?.textContent || '';
-          if (text.includes(keyword) || text.includes(altKeyword)) {
-            radio.click();
-            return { clicked: true, method: 'radio', text: text.substring(0, 50) };
-          }
-        }
+      console.log(`    → OOO ${room.keyword}: クリック=${clicked}`);
 
-        return { clicked: false, method: 'none' };
-      }, room.keyword, room.altKeyword);
-
-      console.log(`    → OOO ${room.keyword}: クリック結果=${JSON.stringify(clickResult)}`);
-
-      if (clickResult.clicked) {
-        // テーブルが期待する時間枠に更新されるまで待機（最大15秒）
+      if (clicked) {
+        // テーブルが期待する時間枠に更新されるまで待機（最大20秒）
         const expectedTime = room.expectedFirstTime;
         try {
           await page.waitForFunction(
@@ -106,17 +134,18 @@ async function scrape(browser) {
               const text = firstCell.textContent || '';
               return text.includes(expected);
             },
-            { timeout: 15000 },
+            { timeout: 20000 },
             expectedTime
           );
           console.log(`    → OOO ${room.keyword}: テーブル更新確認 (${expectedTime})`);
         } catch (e) {
-          console.log(`    → OOO ${room.keyword}: テーブル更新タイムアウト、追加待機...`);
+          console.log(`    → OOO ${room.keyword}: テーブル更新タイムアウト (期待:${expectedTime})`);
+          // タイムアウト時は追加で待機
           await new Promise(resolve => setTimeout(resolve, 5000));
         }
 
         // 追加の安定化待機
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 1500));
 
         // 更新後の時間枠を確認
         const afterTimeSlot = await page.evaluate(() => {
