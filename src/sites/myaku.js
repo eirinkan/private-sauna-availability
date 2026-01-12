@@ -24,6 +24,7 @@
  */
 
 const { chromium } = require('playwright');
+const fs = require('fs');
 
 const BASE_URL = 'https://spot-ly.jp/ja/hotels/176';
 
@@ -63,17 +64,48 @@ const PLANS = [
 
 async function scrape(puppeteerBrowser) {
   // Playwright独自のブラウザを起動
-  // Cloud Run環境ではシステムのchromiumを使用
+  // Docker/Cloud Run環境ではシステムのchromiumを使用
+
+  // 複数の可能なChromiumパスをチェック
+  const chromiumPaths = [
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable'
+  ];
+
+  let chromiumPath = null;
+  for (const path of chromiumPaths) {
+    if (fs.existsSync(path)) {
+      chromiumPath = path;
+      break;
+    }
+  }
+
   const isCloudRun = process.env.K_SERVICE !== undefined;
+  const chromiumExists = chromiumPath !== null;
+
+  console.log(`    → 脈: 環境検出 - K_SERVICE=${process.env.K_SERVICE}, isCloudRun=${isCloudRun}, chromiumExists=${chromiumExists}, chromiumPath=${chromiumPath}`);
+
   const launchOptions = {
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
   };
 
-  // Cloud Run環境ではシステムのchromiumパスを指定
-  if (isCloudRun) {
-    launchOptions.executablePath = '/usr/bin/chromium';
+  // システムのchromiumが存在する場合は使用（Docker/Cloud Run環境）
+  // 環境変数からのパスも確認
+  const envChromiumPath = process.env.PUPPETEER_EXECUTABLE_PATH || process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+  if (envChromiumPath && fs.existsSync(envChromiumPath)) {
+    launchOptions.executablePath = envChromiumPath;
+    console.log(`    → 脈: 環境変数からのChromiumを使用 - ${envChromiumPath}`);
+  } else if (chromiumExists) {
+    launchOptions.executablePath = chromiumPath;
+    console.log(`    → 脈: システムChromiumを使用 - ${chromiumPath}`);
+  } else {
+    console.log(`    → 脈: Playwrightのバンドル版Chromiumを使用`);
   }
+
+  console.log(`    → 脈: Playwright起動オプション:`, JSON.stringify(launchOptions));
 
   const browser = await chromium.launch(launchOptions);
 
