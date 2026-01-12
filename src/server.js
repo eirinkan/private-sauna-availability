@@ -240,7 +240,8 @@ app.get('/api/debug/ooo', async (req, res) => {
         if (cells.length < 2) return;
 
         const firstCellText = cells[0].textContent;
-        const timeMatch = firstCellText.match(/(\d{2}:\d{2})~(\d{2}:\d{2})/);
+        // 日本語/英語両対応: "08:40~10:40" or "08:40~ 10:40"
+        const timeMatch = firstCellText.match(/(\d{2}:\d{2})~\s*(\d{2}:\d{2})/);
         if (!timeMatch) return;
 
         const timeRange = timeMatch[1] + '〜' + timeMatch[2];
@@ -265,7 +266,44 @@ app.get('/api/debug/ooo', async (req, res) => {
         }
       });
 
-      return { dates: Object.keys(data).length, slotCount, sampleDates: dates.slice(0, 3) };
+      // 行の詳細情報を取得（デバッグ用）
+      const sampleRows = [];
+      let timeMatchCount = 0;
+      for (let rowIdx = 0; rowIdx < Math.min(rows.length, 5); rowIdx++) {
+        const row = rows[rowIdx];
+        const cells = row.querySelectorAll('td');
+        if (cells.length < 2) continue;
+        const firstCellText = cells[0].textContent.trim();
+        const timeMatch = firstCellText.match(/(\d{2}:\d{2})~\s*(\d{2}:\d{2})/);
+        if (timeMatch) timeMatchCount++;
+        sampleRows.push({
+          rowIdx,
+          firstCellText: firstCellText.substring(0, 50),
+          timeMatch: timeMatch ? timeMatch[0] : null,
+          cellCount: cells.length
+        });
+      }
+
+      // セルの詳細情報を取得
+      const sampleCells = [];
+      const firstRow = rows[0];
+      if (firstRow) {
+        const cells = firstRow.querySelectorAll('td');
+        for (let i = 1; i < Math.min(cells.length, 4); i++) {
+          const cell = cells[i];
+          sampleCells.push({
+            classes: cell.className,
+            hasCursor: cell.classList.contains('cursor'),
+            hasBgGray: cell.classList.contains('bg-gray'),
+            hasCircleIcon: !!cell.querySelector('i.ri-checkbox-blank-circle-line'),
+            hasCloseIcon: !!cell.querySelector('i.ri-close-line'),
+            allIcons: Array.from(cell.querySelectorAll('i')).map(i => i.className),
+            innerHTML: cell.innerHTML.substring(0, 100)
+          });
+        }
+      }
+
+      return { dates: Object.keys(data).length, slotCount, sampleDates: dates.slice(0, 3), sampleCells, sampleRows, timeMatchCount, rowCount: rows.length };
     });
     results.tableData = tableData;
     results.steps.push({ step: 'data_extracted', time: Date.now() - startTime });

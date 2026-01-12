@@ -102,11 +102,12 @@ async function scrape(browser) {
 
       const tableData = await page.evaluate(() => {
         const data = {};
+        const debug = { dateCount: 0, rowCount: 0, timeMatches: 0, availableCount: 0 };
         const year = new Date().getFullYear();
 
         // gold-tableを取得
         const tables = document.querySelectorAll('table.gold-table');
-        if (tables.length < 2) return data;
+        if (tables.length < 2) return { data, debug: { ...debug, error: 'tables < 2', count: tables.length } };
 
         // 最初のテーブル（thead）から日付を取得
         const headerTable = tables[0];
@@ -120,21 +121,25 @@ async function scrape(browser) {
             dates.push(`${year}-${match[1]}-${match[2]}`);
           }
         });
+        debug.dateCount = dates.length;
 
-        if (dates.length === 0) return data;
+        if (dates.length === 0) return { data, debug: { ...debug, error: 'no dates' } };
 
         // 2番目のテーブル（tbody）から時間枠と空き状況を取得
         const bodyTable = tables[1];
         const rows = bodyTable.querySelectorAll('tr');
+        debug.rowCount = rows.length;
 
         rows.forEach(row => {
           const cells = row.querySelectorAll('td');
           if (cells.length < 2) return;
 
-          // 最初のセルから時間を取得（"08:40~10:40 120分" 形式）
+          // 最初のセルから時間を取得
+          // 日本語: "08:40~10:40 120分" / 英語: "08:40~ 10:40 120 minutes"
           const firstCellText = cells[0].textContent;
-          const timeMatch = firstCellText.match(/(\d{2}:\d{2})~(\d{2}:\d{2})/);
+          const timeMatch = firstCellText.match(/(\d{2}:\d{2})~\s*(\d{2}:\d{2})/);
           if (!timeMatch) return;
+          debug.timeMatches++;
 
           const timeRange = timeMatch[1] + '〜' + timeMatch[2];
 
@@ -152,6 +157,7 @@ async function scrape(browser) {
                                   cell.querySelector('i.ri-close-line') !== null;
 
             if (isAvailable && !isUnavailable) {
+              debug.availableCount++;
               if (!data[dateStr]) {
                 data[dateStr] = [];
               }
@@ -162,12 +168,20 @@ async function scrape(browser) {
           }
         });
 
-        return data;
+        return { data, debug };
       });
 
+      // デバッグ情報をログ出力
+      if (tableData.debug) {
+        console.log(`    → OOO ${room.keyword}: debug=${JSON.stringify(tableData.debug)}`);
+      }
+
+      // dataを抽出（旧コードとの互換性）
+      const extractedData = tableData.data || tableData;
+
       // デバッグ: 取得したデータを表示
-      const slotCount = Object.values(tableData).reduce((sum, arr) => sum + arr.length, 0);
-      console.log(`    → OOO ${room.keyword}: ${Object.keys(tableData).length}日分, ${slotCount}枠取得`);
+      const slotCount = Object.values(extractedData).reduce((sum, arr) => sum + arr.length, 0);
+      console.log(`    → OOO ${room.keyword}: ${Object.keys(extractedData).length}日分, ${slotCount}枠取得`);
 
       // まず7日分の日付を確保（部屋データがあってもなくても）
       const today = new Date();
@@ -185,7 +199,7 @@ async function scrape(browser) {
       }
 
       // 部屋ごとのデータを結果にマージ（上書き）
-      for (const [dateStr, times] of Object.entries(tableData)) {
+      for (const [dateStr, times] of Object.entries(extractedData)) {
         if (!result.dates[dateStr]) {
           result.dates[dateStr] = {};
         }
