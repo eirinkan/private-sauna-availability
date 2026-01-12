@@ -9,9 +9,13 @@
  *
  * Cloudflare保護あり → FlareSolverr使用
  * カレンダーの日付をクリックして時間枠を取得
+ *
+ * Cloud Run環境: FlareSolverr HTMLを直接パース
+ * ローカル環境: Puppeteerでインタラクティブに取得
  */
 
 const flaresolverr = require('../flaresolverr');
+const cheerio = require('cheerio');
 
 const URL = 'https://reserva.be/saunayogan/reserve?mode=service_staff&search_evt_no=eeeJyzMDY2MQIAAxwBBQ';
 
@@ -48,7 +52,109 @@ async function getCloudfareCookies() {
   return null;
 }
 
-async function scrape(browser) {
+/**
+ * ローカル日付をYYYY-MM-DD形式で取得
+ */
+function formatLocalDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * FlareSolverr HTML直接パース方式（Cloud Run環境向け）
+ * 各日付のページを直接FlareSolverrで取得してパース
+ */
+async function scrapeWithFlareSolverr() {
+  const result = { dates: {} };
+  const today = new Date();
+
+  console.log('    サウナヨーガン: FlareSolverr直接HTML方式を使用');
+
+  // 7日分の日付を処理
+  for (let i = 0; i < 7; i++) {
+    const targetDate = new Date(today);
+    targetDate.setDate(today.getDate() + i);
+    const dateStr = formatLocalDate(targetDate);
+
+    // 日付初期化
+    result.dates[dateStr] = {};
+    result.dates[dateStr][ROOM_NAME] = [];
+
+    try {
+      // 日付固有のURLを構築（reserva.beの日付パラメータ形式）
+      const dateUrl = `https://reserva.be/saunayogan/reserve?mode=service_staff&search_evt_no=eeeJyzMDY2MQIAAxwBBQ&sel_date=${dateStr}`;
+
+      console.log(`    サウナヨーガン: ${dateStr} FlareSolverr取得中...`);
+      const { html } = await flaresolverr.getPageHtml(dateUrl, 60000);
+
+      if (!html) {
+        console.log(`    サウナヨーガン: ${dateStr} HTML取得失敗`);
+        continue;
+      }
+
+      // Cloudflareチャレンジページチェック
+      if (html.includes('Just a moment') || html.includes('Cloudflare') || html.includes('しばらくお待ちください')) {
+        console.log(`    サウナヨーガン: ${dateStr} Cloudflareチャレンジ - スキップ`);
+        continue;
+      }
+
+      // cheerioでHTMLをパース
+      const $ = cheerio.load(html);
+
+      // 時間枠を抽出: input.timebox[data-vacancy="1"]
+      const timeSlots = [];
+      $('input.timebox[data-vacancy="1"]').each((_, el) => {
+        const time = $(el).attr('data-time');
+        if (time) {
+          // ～ を 〜 に統一
+          const normalizedTime = time.replace(/[～~]/g, '〜');
+          if (!timeSlots.includes(normalizedTime)) {
+            timeSlots.push(normalizedTime);
+          }
+        }
+      });
+
+      // 代替: label.timebox内のテキストから抽出
+      if (timeSlots.length === 0) {
+        $('label.timebox').each((_, el) => {
+          const text = $(el).text().trim();
+          // "10:00～12:30" のようなパターンを抽出
+          const timeMatch = text.match(/(\d{1,2}:\d{2})[～~〜](\d{1,2}:\d{2})/);
+          if (timeMatch) {
+            const normalizedTime = `${timeMatch[1]}〜${timeMatch[2]}`;
+            // 予約済みでないか確認（is-reserved クラスがないか）
+            if (!$(el).hasClass('is-reserved') && !$(el).hasClass('is-unavailable')) {
+              if (!timeSlots.includes(normalizedTime)) {
+                timeSlots.push(normalizedTime);
+              }
+            }
+          }
+        });
+      }
+
+      console.log(`    サウナヨーガン: ${dateStr} 空き枠 = ${timeSlots.length}個 [${timeSlots.join(', ')}]`);
+
+      if (timeSlots.length > 0) {
+        result.dates[dateStr][ROOM_NAME] = timeSlots.sort((a, b) => {
+          const [aH] = a.split(':').map(Number);
+          const [bH] = b.split(':').map(Number);
+          return aH - bH;
+        });
+      }
+    } catch (error) {
+      console.log(`    サウナヨーガン: ${dateStr} エラー - ${error.message}`);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Puppeteerによるインタラクティブ方式（ローカル環境向け）
+ */
+async function scrapeWithPuppeteer(browser) {
   const page = await browser.newPage();
 
   try {
@@ -104,8 +210,10 @@ async function scrape(browser) {
       console.log(`    サウナヨーガン: 再確認後のページタイトル = "${pageTitle}"`);
 
       if (pageTitle.includes('Just a moment') || pageTitle.includes('Cloudflare') || pageTitle.includes('しばらくお待ちください')) {
-        console.log('    サウナヨーガン: Cloudflareチャレンジページ検出 - スキップ');
-        return { dates: {} };
+        console.log('    サウナヨーガン: Cloudflareチャレンジページ検出 - FlareSolverr方式にフォールバック');
+        await page.close();
+        // FlareSolverr HTML方式を試行
+        return await scrapeWithFlareSolverr();
       }
     }
 
@@ -121,14 +229,6 @@ async function scrape(browser) {
       }
     });
     await new Promise(resolve => setTimeout(resolve, 2000));
-
-    // ローカル日付をYYYY-MM-DD形式で取得
-    function formatLocalDate(date) {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    }
 
     // 結果を格納
     const result = { dates: {} };
@@ -217,6 +317,26 @@ async function scrape(browser) {
   } finally {
     await page.close();
   }
+}
+
+/**
+ * メインスクレイピング関数
+ * 環境に応じて適切な方式を選択
+ */
+async function scrape(browser) {
+  // Cloud Run環境かどうかをチェック
+  const isCloudRun = process.env.K_SERVICE || process.env.CLOUD_RUN;
+  const isFlareSolverrAvailable = await flaresolverr.isAvailable();
+
+  console.log(`    サウナヨーガン: 環境=${isCloudRun ? 'Cloud Run' : 'ローカル'}, FlareSolverr=${isFlareSolverrAvailable ? '利用可能' : '利用不可'}`);
+
+  // Cloud Run環境でFlareSolverrが利用可能な場合、HTML直接パース方式を使用
+  if (isCloudRun && isFlareSolverrAvailable) {
+    return await scrapeWithFlareSolverr();
+  }
+
+  // それ以外はPuppeteer方式
+  return await scrapeWithPuppeteer(browser);
 }
 
 module.exports = { scrape };
