@@ -90,6 +90,51 @@ app.get('/api/pricing', (req, res) => {
   res.json(PRICING);
 });
 
+// API: FlareSolverr診断エンドポイント
+app.get('/api/debug/flaresolverr', async (req, res) => {
+  const flaresolverr = require('./flaresolverr');
+  const axios = require('axios');
+  const results = {
+    environment: {
+      FLARESOLVERR_URL: process.env.FLARESOLVERR_URL || 'not set'
+    },
+    tests: []
+  };
+
+  // 1. isAvailable() テスト
+  try {
+    const isAvail = await flaresolverr.isAvailable();
+    results.tests.push({ name: 'isAvailable()', success: true, result: isAvail });
+  } catch (e) {
+    results.tests.push({ name: 'isAvailable()', success: false, error: e.message });
+  }
+
+  // 2. 直接ヘルスチェック
+  const healthUrl = (process.env.FLARESOLVERR_URL || '').replace('/v1', '/health');
+  try {
+    const healthRes = await axios.get(healthUrl, { timeout: 10000 });
+    results.tests.push({ name: 'health check', success: true, status: healthRes.status, data: healthRes.data });
+  } catch (e) {
+    results.tests.push({ name: 'health check', success: false, error: e.message, url: healthUrl });
+  }
+
+  // 3. FlareSolverrでreserva.beを試す
+  try {
+    const testResult = await flaresolverr.getPageHtml('https://reserva.be/giraffe_minamitenjin', 30000);
+    results.tests.push({
+      name: 'reserva.be test',
+      success: true,
+      cookieCount: testResult.cookies?.length || 0,
+      userAgent: testResult.userAgent?.substring(0, 50),
+      htmlLength: testResult.html?.length || 0
+    });
+  } catch (e) {
+    results.tests.push({ name: 'reserva.be test', success: false, error: e.message });
+  }
+
+  res.json(results);
+});
+
 // API: 脈専用デバッグエンドポイント
 app.get('/api/debug/myaku', async (req, res) => {
   const puppeteer = require('puppeteer');
