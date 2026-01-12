@@ -63,10 +63,19 @@ const PLANS = [
 
 async function scrape(puppeteerBrowser) {
   // Playwright独自のブラウザを起動
-  const browser = await chromium.launch({
+  // Cloud Run環境ではシステムのchromiumを使用
+  const isCloudRun = process.env.K_SERVICE !== undefined;
+  const launchOptions = {
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
-  });
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+  };
+
+  // Cloud Run環境ではシステムのchromiumパスを指定
+  if (isCloudRun) {
+    launchOptions.executablePath = '/usr/bin/chromium';
+  }
+
+  const browser = await chromium.launch(launchOptions);
 
   const context = await browser.newContext({
     userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
