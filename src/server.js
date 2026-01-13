@@ -321,6 +321,116 @@ app.get('/api/debug/ooo', async (req, res) => {
   }
 });
 
+// API: サウナヨーガン専用デバッグエンドポイント
+app.get('/api/debug/yogan', async (req, res) => {
+  const puppeteer = require('puppeteer-extra');
+  const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+  puppeteer.use(StealthPlugin());
+
+  const startTime = Date.now();
+  const results = { steps: [], errors: [] };
+
+  let browser;
+  try {
+    results.steps.push({ step: 'start', time: 0 });
+
+    // ブラウザ起動（stealth plugin付き）
+    const isCloudRun = !!process.env.K_SERVICE;
+    const launchOptions = {
+      headless: 'new',
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--disable-blink-features=AutomationControlled',
+        '--window-size=1280,900'
+      ]
+    };
+    if (isCloudRun) {
+      launchOptions.executablePath = '/usr/bin/chromium';
+    }
+    results.launchOptions = launchOptions;
+    results.isCloudRun = isCloudRun;
+
+    browser = await puppeteer.launch(launchOptions);
+    results.steps.push({ step: 'browser_launched', time: Date.now() - startTime });
+
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1280, height: 900 });
+    results.steps.push({ step: 'page_created', time: Date.now() - startTime });
+
+    const url = 'https://reserva.be/saunayogan/reserve?mode=service_staff&search_evt_no=eeeJyzMDY2MQIAAxwBBQ';
+    results.url = url;
+
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: 90000 });
+    results.steps.push({ step: 'page_loaded', time: Date.now() - startTime });
+
+    // Cloudflareチャレンジ確認
+    const pageTitle = await page.title();
+    const pageContent = await page.content();
+    results.pageTitle = pageTitle;
+
+    const isChallenge =
+      pageTitle.includes('Just a moment') ||
+      pageTitle.includes('Cloudflare') ||
+      pageTitle.includes('しばらくお待ちください') ||
+      pageContent.includes('Checking your browser') ||
+      pageContent.includes('cf-browser-verification');
+    results.isCloudflareChallenge = isChallenge;
+    results.steps.push({ step: 'cloudflare_check', time: Date.now() - startTime });
+
+    // 追加待機（Cloudflareチャレンジ通過のため）
+    if (isChallenge) {
+      await new Promise(r => setTimeout(r, 10000));
+      const newTitle = await page.title();
+      results.afterWaitTitle = newTitle;
+      results.steps.push({ step: 'wait_10s_for_challenge', time: Date.now() - startTime });
+    }
+
+    // ページ情報取得
+    await new Promise(r => setTimeout(r, 5000));
+
+    const calendarInfo = await page.evaluate(() => {
+      const allInputs = document.querySelectorAll('input[name="userselect_date"]');
+      const availableInputs = document.querySelectorAll('input[name="userselect_date"][data-targetdate]:not(.is-unavailable)');
+      const unavailableInputs = document.querySelectorAll('input[name="userselect_date"].is-unavailable');
+
+      const availableDates = Array.from(availableInputs).map(input => input.dataset.targetdate);
+
+      return {
+        allInputCount: allInputs.length,
+        availableCount: availableInputs.length,
+        unavailableCount: unavailableInputs.length,
+        availableDates: availableDates.slice(0, 10),
+        bodyLength: document.body.innerHTML.length,
+        hasCalendar: allInputs.length > 0
+      };
+    });
+    results.calendarInfo = calendarInfo;
+    results.steps.push({ step: 'calendar_analysis', time: Date.now() - startTime });
+
+    // スクリーンショット情報（HTMLの一部）
+    const htmlSnippet = await page.evaluate(() => {
+      return document.body.innerHTML.substring(0, 500);
+    });
+    results.htmlSnippet = htmlSnippet;
+
+    await browser.close();
+    results.steps.push({ step: 'browser_closed', time: Date.now() - startTime });
+
+    results.success = true;
+    results.totalTime = Date.now() - startTime;
+    res.json(results);
+  } catch (error) {
+    if (browser) await browser.close().catch(() => {});
+    results.success = false;
+    results.error = error.message;
+    results.totalTime = Date.now() - startTime;
+    res.status(500).json(results);
+  }
+});
+
 // API: 脈専用デバッグエンドポイント
 app.get('/api/debug/myaku', async (req, res) => {
   const puppeteer = require('puppeteer');
