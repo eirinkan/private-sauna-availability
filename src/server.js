@@ -34,8 +34,9 @@ app.post('/api/refresh', handleRefresh);
 app.get('/api/refresh', handleRefresh);
 
 // API: ヘルスチェック
+const VERSION = '2026-01-13-v2'; // デプロイ確認用
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ status: 'ok', version: VERSION, timestamp: new Date().toISOString() });
 });
 
 // API: Puppeteer診断（Cloud Run環境デバッグ用）
