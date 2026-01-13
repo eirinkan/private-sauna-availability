@@ -86,9 +86,66 @@
 
 ---
 
+## GIRAFFE (reserva.be) のスクレイピング
+
+### 重要なルール
+
+1. **時間文字列の分割は正規表現で**
+   - RESERVAのtimebox要素は`data-time`に時間を持つ（例: `09:40～11:40`）
+   - `～`（全角チルダ U+FF5E）と`〜`（波ダッシュ U+301C）の両方が使われる可能性がある
+   - 分割には正規表現 `/[～〜]/` を使用すること
+
+2. **ページ再アクセス禁止**
+   - 複数日のデータを取得する際、ページを再アクセス（`page.goto()`）しない
+   - 同じページ内で日付をクリックして切り替えること
+   - 再アクセスするとCloudflareチェックがトリガーされ、本番環境で失敗する
+
+### スクレイピング手順
+
+1. FlareSolverrでCloudflare Cookieを取得
+2. 各部屋のURLにアクセス（1部屋1URL）
+3. `input.timebox[data-vacancy="1"]`要素から空き枠を抽出
+4. `data-targetgroup`（日付）と`data-time`（時間）を使用
+
+### データ抽出コード
+
+```javascript
+// 正しい分割方法
+const timeParts = time.split(/[～〜]/);
+const timeRange = timeParts[0].replace(/^0/, '') + '〜' + timeParts[1].replace(/^0/, '');
+```
+
+---
+
+## サウナヨーガン (reserva.be) のスクレイピング
+
+### 重要なルール
+
+1. **ページ再アクセス禁止（最重要）**
+   - 7日分のデータを取得する際、2日目以降でページを再アクセスしない
+   - 1回のアクセスで、日付ラベルをクリックして全日程を取得すること
+   - 再アクセスすると本番環境でCloudflareに弾かれる
+
+### スクレイピング手順
+
+1. FlareSolverrでCloudflare Cookieを取得
+2. 予約ページに1回だけアクセス
+3. 各日付の`label[for="YYYY-MM-DD"]`をクリック
+4. `input.timebox[data-vacancy="1"]`から空き枠を抽出
+5. 次の日付をクリック（ページ再アクセスしない）
+
+---
+
 ## サイト別メモ
 
 ### spot-ly.jp (脈)
 - 認証: **ログイン不要**
 - URL形式: `?checkinDatetime=YYYY-MM-DD+00%3A00%3A00&checkoutDatetime=...`
 - 空き判定: ボタンの`disabled`属性で判定
+
+### reserva.be (GIRAFFE, サウナヨーガン)
+- 認証: **ログイン不要**
+- Cloudflare保護あり → FlareSolverrでCookie取得必須
+- 空き判定: `input.timebox[data-vacancy="1"]`
+- 時間形式: `data-time="09:40～11:40"` → 全角チルダと波ダッシュの両方に対応
+- **重要**: ページ再アクセス禁止（Cloudflareトリガー回避）
