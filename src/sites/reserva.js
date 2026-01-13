@@ -86,9 +86,11 @@ async function getCloudfareCookies() {
 async function scrapeCalendarWithPuppeteer(page) {
   return await page.evaluate(() => {
     const result = {};
+    const debugInfo = { total: 0, vacant: 0, processed: 0, splitFailed: 0 };
 
     // 方法1: input.timebox 要素から取得（最も正確）
     const timeboxInputs = document.querySelectorAll('input.timebox');
+    debugInfo.total = timeboxInputs.length;
 
     if (timeboxInputs.length > 0) {
       timeboxInputs.forEach(input => {
@@ -96,13 +98,21 @@ async function scrapeCalendarWithPuppeteer(page) {
         const time = input.dataset.time; // "09:30～11:30"
         const vacancy = input.dataset.vacancy;
 
+        if (vacancy === '1') debugInfo.vacant++;
+
         if (targetGroup && time && vacancy === '1') {
+          debugInfo.processed++;
           // 日付をYYYY-MM-DD形式に変換
           const dateStr = targetGroup; // すでにYYYY-MM-DD形式
 
           // 時間をそのまま使用（09:30～11:30形式）
           // 先頭の0を削除して統一（09:30→9:30）
-          const timeParts = time.split('～');
+          // 全角チルダ（～）と波ダッシュ（〜）の両方に対応
+          const timeParts = time.split(/[～〜]/);
+          if (timeParts.length < 2) {
+            debugInfo.splitFailed++;
+            return; // splitに失敗した場合はスキップ
+          }
           const timeRange = timeParts[0].replace(/^0/, '') + '〜' + timeParts[1].replace(/^0/, '');
 
           if (!result[dateStr]) {
@@ -276,6 +286,20 @@ async function scrapeRoomWithCookies(browser, room, facilityName, cfData) {
 
     // カレンダーテーブルまたはグリッドを探す
     let calendarData = await scrapeCalendarWithPuppeteer(page);
+
+    // デバッグ: 抽出結果をログ出力
+    const dateCount = Object.keys(calendarData).length;
+    const totalSlots = Object.values(calendarData).reduce((sum, arr) => sum + arr.length, 0);
+    console.log(`    ${facilityName}: timebox抽出結果 = ${dateCount}日, ${totalSlots}枠`);
+    if (dateCount === 0) {
+      // timebox要素の存在を確認
+      const timeboxCheck = await page.evaluate(() => {
+        const all = document.querySelectorAll('input.timebox');
+        const vacant = document.querySelectorAll('input.timebox[data-vacancy="1"]');
+        return { total: all.length, vacant: vacant.length };
+      });
+      console.log(`    ${facilityName}: timebox要素 = total:${timeboxCheck.total}, vacant:${timeboxCheck.vacant}`);
+    }
 
     // DOM解析で失敗した場合、AI Vision APIを使用
     if (Object.keys(calendarData).length === 0) {
