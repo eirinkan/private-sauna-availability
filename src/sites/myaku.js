@@ -168,13 +168,13 @@ async function scrape(puppeteerBrowser) {
 
           availableSlots.forEach(slot => {
             let timeStr = slot.time;
-            // ナイトパックの場合は翌日の日付を付与
+            // ナイトパックの場合は翌日の日付を先頭に付与（GIRAFFE形式に統一）
             if (plan.isNight) {
               const nextDay = new Date(dateStr);
               nextDay.setDate(nextDay.getDate() + 1);
               const nextMonth = nextDay.getMonth() + 1;
               const nextDayNum = nextDay.getDate();
-              timeStr = `${slot.time} (${nextMonth}/${nextDayNum}朝)`;
+              timeStr = `${nextMonth}/${nextDayNum} ${slot.time}`;
             }
             if (!result.dates[dateStr][plan.name].includes(timeStr)) {
               result.dates[dateStr][plan.name].push(timeStr);
