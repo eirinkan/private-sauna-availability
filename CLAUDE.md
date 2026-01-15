@@ -24,6 +24,24 @@
 
 これにより、地域や店舗が増えても統一された形式で対応可能
 
+### ブラウザ自動化ツールの使い分け
+データ検証やサイト確認時のブラウザツール選択:
+
+1. **Claude in Chrome を優先使用**
+   - Cloudflareで保護されたサイト（reserva.be等）の確認
+   - ユーザーのブラウザセッションを使うため、Cloudflareをバイパスできる
+   - 認証済みサイトの操作
+   - 実際のブラウザ画面を見ながらのデバッグ
+
+2. **Puppeteer MCP を使用する場面**
+   - localhost/ローカル開発サーバーのテスト
+   - Cloudflare保護のないサイト
+   - ヘッドレスでの自動処理
+
+3. **判断基準**
+   - Cloudflare保護あり → **Claude in Chrome**
+   - Cloudflare保護なし → Puppeteer MCP（軽量・安定）
+
 ### デプロイ方法
 - **mainブランチへのコミット = 自動デプロイ**
 - GitHubとCloud Buildが連携しており、pushすると自動的にCloud Runにデプロイされる
