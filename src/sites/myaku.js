@@ -13,7 +13,13 @@
  *    - 「予約する」ボタンをクリックしてモーダルを開く
  *    - モーダル内の7日×時間帯テーブルからdisabled属性で空き判定
  *    - Escapeでモーダルを閉じる
+ *
+ * 注意: puppeteer-extra-plugin-stealthを使用（ボット検出回避）
  */
+
+const puppeteerExtra = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+puppeteerExtra.use(StealthPlugin());
 
 const BASE_URL = 'https://spot-ly.jp/ja/hotels/176';
 
@@ -69,9 +75,20 @@ function formatLocalDate(date) {
 }
 
 async function scrape(puppeteerBrowser) {
-  console.log('    → 脈: 共有Puppeteerブラウザを使用');
+  console.log('    → 脈: Stealthプラグイン付きブラウザを起動');
 
-  const page = await puppeteerBrowser.newPage();
+  // Cloud Run環境ではボット検出されるため、stealthプラグイン付きで独自ブラウザを起動
+  const isCloudRun = !!process.env.K_SERVICE;
+  const launchOptions = {
+    headless: 'new',
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
+  };
+  if (isCloudRun) {
+    launchOptions.executablePath = '/usr/bin/chromium';
+  }
+
+  const browser = await puppeteerExtra.launch(launchOptions);
+  const page = await browser.newPage();
   await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
   await page.setViewport({ width: 1280, height: 900 });
 
@@ -320,6 +337,7 @@ async function scrape(puppeteerBrowser) {
 
   } finally {
     await page.close();
+    await browser.close();
   }
 }
 
