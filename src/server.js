@@ -563,6 +563,11 @@ app.get('/api/debug/myaku', async (req, res) => {
     const htmlLength = await page.evaluate(() => document.body.innerHTML.length);
     results.htmlLength = htmlLength;
 
+    // スクリーンショットをBase64で取得
+    await page.evaluate(() => window.scrollTo(0, 600));
+    const screenshotBuffer = await page.screenshot({ encoding: 'base64' });
+    results.screenshot = `data:image/png;base64,${screenshotBuffer}`;
+
     await browser.close();
     results.steps.push({ step: 'browser_closed', time: Date.now() - startTime });
 
