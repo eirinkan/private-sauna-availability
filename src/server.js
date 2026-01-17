@@ -491,20 +491,22 @@ app.get('/api/debug/myaku', async (req, res) => {
     await new Promise(r => setTimeout(r, 1000));
 
     const planCheck = await page.evaluate(() => {
-      const allClasses = [];
-      document.querySelectorAll('*').forEach(el => {
-        if (el.className && typeof el.className === 'string' && el.className.includes('control')) {
-          allClasses.push(el.className.substring(0, 100));
-        }
-      });
+      // HTML内の特定のキーワードを検索
+      const html = document.body.innerHTML;
       return {
         hasKYU: document.body.innerText.includes('KYU'),
         hasMIZU: document.body.innerText.includes('MIZU'),
         hasHI: document.body.innerText.includes('火 HI'),
+        has0mei: document.body.innerText.includes('0名'),
+        has1mei: document.body.innerText.includes('1名'),
+        hasAdult: document.body.innerText.includes('大人'),
         controlCount: document.querySelectorAll('[class*="-control"]').length,
         inputCount: document.querySelectorAll('input[id^="react-select"]').length,
         singleValueCount: document.querySelectorAll('[class*="singleValue"]').length,
-        controlClasses: allClasses.slice(0, 10)
+        selectCount: document.querySelectorAll('select').length,
+        // クラス名にcssを含む要素（react-selectはcss-xxxという形式）
+        cssClassCount: document.querySelectorAll('[class*="css-"]').length,
+        htmlSample: html.substring(0, 500)
       };
     });
     results.planCheck = planCheck;
