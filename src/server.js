@@ -434,7 +434,9 @@ app.get('/api/debug/yogan', async (req, res) => {
 
 // API: 脈専用デバッグエンドポイント
 app.get('/api/debug/myaku', async (req, res) => {
-  const puppeteer = require('puppeteer');
+  const puppeteerExtra = require('puppeteer-extra');
+  const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+  puppeteerExtra.use(StealthPlugin());
   const startTime = Date.now();
   const results = { steps: [], errors: [] };
 
@@ -442,7 +444,7 @@ app.get('/api/debug/myaku', async (req, res) => {
   try {
     results.steps.push({ step: 'start', time: 0 });
 
-    // ブラウザ起動
+    // ブラウザ起動（stealthプラグイン付き）
     const isCloudRun = !!process.env.K_SERVICE;
     const launchOptions = {
       headless: 'new',
@@ -452,7 +454,7 @@ app.get('/api/debug/myaku', async (req, res) => {
       launchOptions.executablePath = '/usr/bin/chromium';
     }
 
-    browser = await puppeteer.launch(launchOptions);
+    browser = await puppeteerExtra.launch(launchOptions);
     results.steps.push({ step: 'browser_launched', time: Date.now() - startTime });
 
     const page = await browser.newPage();
