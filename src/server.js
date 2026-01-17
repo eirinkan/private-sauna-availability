@@ -460,11 +460,8 @@ app.get('/api/debug/myaku', async (req, res) => {
     await page.setViewport({ width: 1280, height: 900 });
     results.steps.push({ step: 'page_created', time: Date.now() - startTime });
 
-    // 日付パラメータ付きURLにアクセス
-    const now = new Date();
-    const checkinDate = now.toISOString().split('T')[0];
-    const checkoutDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const url = `https://spot-ly.jp/ja/hotels/176?checkinDatetime=${checkinDate}+00%3A00%3A00&checkoutDatetime=${checkoutDate}+00%3A00%3A00`;
+    // パラメータなしでアクセス（パラメータ付きだとプランが表示されない）
+    const url = 'https://spot-ly.jp/ja/hotels/176';
 
     results.url = url;
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
@@ -477,10 +474,45 @@ app.get('/api/debug/myaku', async (req, res) => {
     const pageTitle = await page.title();
     results.pageTitle = pageTitle;
 
+    // プラン表示確認
+    const planCheck = await page.evaluate(() => {
+      return {
+        hasKYU: document.body.innerText.includes('KYU'),
+        hasMIZU: document.body.innerText.includes('MIZU'),
+        hasHI: document.body.innerText.includes('火 HI'),
+        controlCount: document.querySelectorAll('[class*="-control"]').length,
+        inputCount: document.querySelectorAll('input[id^="react-select"]').length
+      };
+    });
+    results.planCheck = planCheck;
+    results.steps.push({ step: 'plan_check', time: Date.now() - startTime });
+
+    // ドロップダウン操作テスト
+    const dropdownTest = await page.evaluate(() => {
+      const controls = document.querySelectorAll('[class*="-control"]');
+      if (controls[0]) {
+        controls[0].dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        return { clicked: true, controlCount: controls.length };
+      }
+      return { clicked: false, controlCount: 0 };
+    });
+    results.dropdownTest = dropdownTest;
+    await new Promise(r => setTimeout(r, 500));
+
+    // オプション確認
+    const optionsCheck = await page.evaluate(() => {
+      const opts = document.querySelectorAll('[class*="-option"]');
+      return {
+        optionCount: opts.length,
+        options: Array.from(opts).map(o => o.textContent.trim())
+      };
+    });
+    results.optionsCheck = optionsCheck;
+    results.steps.push({ step: 'dropdown_test', time: Date.now() - startTime });
+
     // ボタン情報取得
     const buttonInfo = await page.evaluate(() => {
       const allButtons = document.querySelectorAll('button');
-      const w144Buttons = document.querySelectorAll('button.w-\\[144px\\]');
       const reserveButtons = [];
 
       allButtons.forEach((btn, idx) => {
@@ -495,14 +527,8 @@ app.get('/api/debug/myaku', async (req, res) => {
 
       return {
         totalButtons: allButtons.length,
-        w144Count: w144Buttons.length,
         reserveButtonsFound: reserveButtons.length,
-        reserveButtons: reserveButtons.slice(0, 5),
-        firstFewButtons: Array.from(allButtons).slice(0, 10).map((b, i) => ({
-          idx: i,
-          classes: b.className.substring(0, 50),
-          text: b.innerText.substring(0, 20).replace(/\n/g, ' ')
-        }))
+        reserveButtons: reserveButtons.slice(0, 10)
       };
     });
     results.buttonInfo = buttonInfo;
