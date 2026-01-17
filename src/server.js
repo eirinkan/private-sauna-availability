@@ -474,14 +474,29 @@ app.get('/api/debug/myaku', async (req, res) => {
     const pageTitle = await page.title();
     results.pageTitle = pageTitle;
 
-    // プラン表示確認
+    // プラン表示確認（スクロールして全プラン読み込み）
+    await page.evaluate(() => window.scrollTo(0, 1000));
+    await new Promise(r => setTimeout(r, 2000));
+    await page.evaluate(() => window.scrollTo(0, 2000));
+    await new Promise(r => setTimeout(r, 2000));
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await new Promise(r => setTimeout(r, 1000));
+
     const planCheck = await page.evaluate(() => {
+      const allClasses = [];
+      document.querySelectorAll('*').forEach(el => {
+        if (el.className && typeof el.className === 'string' && el.className.includes('control')) {
+          allClasses.push(el.className.substring(0, 100));
+        }
+      });
       return {
         hasKYU: document.body.innerText.includes('KYU'),
         hasMIZU: document.body.innerText.includes('MIZU'),
         hasHI: document.body.innerText.includes('火 HI'),
         controlCount: document.querySelectorAll('[class*="-control"]').length,
-        inputCount: document.querySelectorAll('input[id^="react-select"]').length
+        inputCount: document.querySelectorAll('input[id^="react-select"]').length,
+        singleValueCount: document.querySelectorAll('[class*="singleValue"]').length,
+        controlClasses: allClasses.slice(0, 10)
       };
     });
     results.planCheck = planCheck;
