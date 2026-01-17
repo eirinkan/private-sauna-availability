@@ -153,7 +153,21 @@ async function scrape(puppeteerBrowser) {
         await reserveButtons[buttonIndex].click();
         await new Promise(r => setTimeout(r, 3000));
 
-        // 3. モーダル内の日付ヘッダーと時間帯ボタンを取得
+        // 3. モーダルが開いて時間帯ボタンが表示されるまで待機
+        try {
+          await page.waitForFunction(() => {
+            const buttons = document.querySelectorAll('button');
+            return Array.from(buttons).some(b => /\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}/.test(b.textContent));
+          }, { timeout: 10000 });
+        } catch (waitError) {
+          console.log(`    → 脈: ${plan.name} - モーダル待機タイムアウト`);
+          await page.keyboard.press('Escape');
+          await new Promise(r => setTimeout(r, 500));
+          continue;
+        }
+
+        // 4. モーダル内の日付ヘッダーと時間帯ボタンを取得
+        // セレクタ `.border.border-gray-200.p-0` は動作しないため、button要素から直接取得
         const modalData = await page.evaluate(() => {
           // 日付ヘッダーを取得（14水, 15木, ...）
           const dateHeaders = [];
@@ -170,20 +184,17 @@ async function scrape(puppeteerBrowser) {
             }
           });
 
-          // 時間帯セルを取得
-          const cells = document.querySelectorAll('.border.border-gray-200.p-0');
+          // 時間帯ボタンを直接取得（セレクタではなくbutton要素から）
+          const allButtons = document.querySelectorAll('button');
           const slots = [];
-          cells.forEach(cell => {
-            const btn = cell.querySelector('button');
-            if (btn) {
-              const text = btn.textContent.trim();
-              const timeMatch = text.match(/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/);
-              if (timeMatch) {
-                slots.push({
-                  time: `${timeMatch[1]}〜${timeMatch[2]}`,
-                  disabled: btn.disabled
-                });
-              }
+          allButtons.forEach(btn => {
+            const text = btn.textContent.trim();
+            const timeMatch = text.match(/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/);
+            if (timeMatch) {
+              slots.push({
+                time: `${timeMatch[1]}〜${timeMatch[2]}`,
+                disabled: btn.disabled
+              });
             }
           });
 
@@ -194,6 +205,8 @@ async function scrape(puppeteerBrowser) {
             slots
           };
         });
+
+        console.log(`    → 脈: ${plan.name} - 取得セル数=${modalData.slots.length}, 日付数=${modalData.dateCount}`);
 
         if (modalData.hasModal && modalData.slots.length > 0) {
           const dateCount = modalData.dateCount || 7;
