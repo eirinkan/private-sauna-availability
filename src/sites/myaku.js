@@ -89,13 +89,19 @@ async function scrape(puppeteerBrowser) {
 
     console.log(`    → 脈: ${targetDates.length}日分をスクレイピング [${targetDates[0]} 〜 ${targetDates[6]}]`);
 
-    // 7日間の日付範囲でURLにアクセス（1回だけ）
-    const startDate = targetDates[0];
-    const endDate = targetDates[6];
-    const directUrl = `${BASE_URL}?checkinDatetime=${startDate}+00%3A00%3A00&checkoutDatetime=${endDate}+00%3A00%3A00`;
+    // 日付パラメータなしでアクセス（パラメータ付きだと「空室が見つかりませんでした」と表示される）
+    const directUrl = BASE_URL;
 
     await page.goto(directUrl, { waitUntil: 'networkidle2', timeout: 60000 });
     await new Promise(r => setTimeout(r, 3000));
+
+    // プランカードが表示されるまで待機
+    try {
+      await page.waitForSelector('button.bg-black', { timeout: 10000 });
+    } catch (e) {
+      console.log('    → 脈: プランカードが表示されない');
+      return { dates: {} };
+    }
 
     // 各プランを処理
     for (const plan of PLANS) {
@@ -106,18 +112,34 @@ async function scrape(puppeteerBrowser) {
         const buttonIndex = plan.pageIndex + 2;
 
         // 1. 人数ドロップダウンで「1名」を選択
-        // react-selectのinputをフォーカスしてドロップダウンを開く
-        // ドロップダウンはプラン順（pageIndex）に並んでいる（各プランに大人・子供の2つ）
-        const inputId = `react-select-${2 + plan.pageIndex * 2}-input`;
-        await page.evaluate((id) => {
-          const input = document.querySelector(`#${id}`);
-          if (input) {
-            input.focus();
-            const event = new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true });
-            input.dispatchEvent(event);
-          }
-        }, inputId);
-        await new Promise(r => setTimeout(r, 1000));
+        // react-selectのcontrol要素にmousedownイベントを発火するとドロップダウンが開く
+        // 各プランに大人・子供の2つのドロップダウンがあり、planIdx * 2が大人用のインデックス
+        const controlIndex = plan.pageIndex * 2;
+
+        const dropdownOpened = await page.evaluate((idx) => {
+          const controls = document.querySelectorAll('[class*="-control"]');
+          if (!controls[idx]) return false;
+          controls[idx].dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+          return true;
+        }, controlIndex);
+
+        if (!dropdownOpened) {
+          console.log(`    → 脈: ${plan.name} - ドロップダウンが見つからない (controlIndex: ${controlIndex})`);
+          continue;
+        }
+        await new Promise(r => setTimeout(r, 500));
+
+        // オプションが表示されるのを待機
+        try {
+          await page.waitForFunction(() => {
+            return document.querySelectorAll('[class*="-option"]').length > 0;
+          }, { timeout: 3000 });
+        } catch (e) {
+          console.log(`    → 脈: ${plan.name} - オプションが表示されない`);
+          await page.keyboard.press('Escape');
+          await new Promise(r => setTimeout(r, 300));
+          continue;
+        }
 
         // 1名オプションをクリック
         const selectedOne = await page.evaluate(() => {
@@ -133,9 +155,11 @@ async function scrape(puppeteerBrowser) {
 
         if (!selectedOne) {
           console.log(`    → 脈: ${plan.name} - 1名オプションが見つからない`);
+          await page.keyboard.press('Escape');
+          await new Promise(r => setTimeout(r, 300));
           continue;
         }
-        await new Promise(r => setTimeout(r, 1000));
+        await new Promise(r => setTimeout(r, 500));
 
         // 2. 予約するボタンをクリック
         const reserveButtons = await page.$$('button.bg-black');
