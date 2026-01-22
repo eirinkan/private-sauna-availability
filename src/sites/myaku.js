@@ -247,19 +247,24 @@ async function scrape(puppeteerBrowser) {
           continue;
         }
 
-        // 1名オプションをクリック
-        const selectedOne = await page.evaluate(() => {
+        // 1名オプションをクリック（デバッグログ強化）
+        const optionInfo = await page.evaluate(() => {
           const options = document.querySelectorAll('[class*="-option"]');
+          const optionTexts = Array.from(options).map(o => o.textContent.trim());
+          let clicked = false;
           for (const opt of options) {
             if (opt.textContent.trim() === '1名') {
               opt.click();
-              return true;
+              clicked = true;
+              break;
             }
           }
-          return false;
+          return { clicked, count: options.length, texts: optionTexts };
         });
 
-        if (!selectedOne) {
+        console.log(`    → 脈: ${plan.name} - オプション検出: ${optionInfo.count}個 [${optionInfo.texts.join(', ')}]`);
+
+        if (!optionInfo.clicked) {
           console.log(`    → 脈: ${plan.name} - 1名オプションが見つからない`);
           await page.keyboard.press('Escape');
           await new Promise(r => setTimeout(r, 300));
@@ -267,15 +272,23 @@ async function scrape(puppeteerBrowser) {
         }
         await new Promise(r => setTimeout(r, 500));
 
-        // 2. 予約するボタンをクリック
+        // 2. 予約するボタンをクリック（デバッグログ強化）
         const reserveButtons = await page.$$('button.bg-black');
+        console.log(`    → 脈: ${plan.name} - bg-blackボタン数: ${reserveButtons.length}, 目標インデックス: ${buttonIndex}`);
+
         if (!reserveButtons[buttonIndex]) {
           console.log(`    → 脈: ${plan.name} - 予約ボタンが見つからない`);
           continue;
         }
 
-        const isDisabled = await reserveButtons[buttonIndex].evaluate(btn => btn.disabled);
-        if (isDisabled) {
+        const buttonState = await reserveButtons[buttonIndex].evaluate(btn => ({
+          disabled: btn.disabled,
+          text: btn.textContent.trim(),
+          classes: btn.className
+        }));
+        console.log(`    → 脈: ${plan.name} - ボタン状態: disabled=${buttonState.disabled}, text="${buttonState.text.substring(0, 20)}"`);
+
+        if (buttonState.disabled) {
           console.log(`    → 脈: ${plan.name} - 予約ボタンが無効`);
           continue;
         }
