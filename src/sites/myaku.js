@@ -332,24 +332,38 @@ async function scrape(puppeteerBrowser) {
 
         // 4. モーダル内の時間帯ボタンを取得
         // ボタンのtextContentから「HH:MM - HH:MM」形式をシンプルに抽出
-        const modalSlots = await page.evaluate(() => {
+        const { modalSlots, debugInfo } = await page.evaluate(() => {
           const allButtons = document.querySelectorAll('button');
           const slots = [];
+          const sampleTexts = [];
 
-          allButtons.forEach(btn => {
+          allButtons.forEach((btn, idx) => {
             const text = btn.textContent.trim().replace(/\s+/g, '');
+            // 最初の30ボタンのテキストをサンプルとして保存
+            if (idx < 30) {
+              sampleTexts.push({ idx, text: text.substring(0, 30) });
+            }
             // パターン: "11:30-13:00"（[0-9]を使用 - \dが動作しない環境対策）
             const match = text.match(/([0-9]{1,2}:[0-9]{2})-([0-9]{1,2}:[0-9]{2})/);
             if (match) {
               slots.push({
                 time: `${match[1]}〜${match[2]}`,
-                disabled: btn.disabled
+                disabled: btn.disabled,
+                btnIdx: idx
               });
             }
           });
 
-          return slots;
+          return {
+            modalSlots: slots,
+            debugInfo: {
+              totalButtons: allButtons.length,
+              sampleTexts: sampleTexts.slice(15, 25) // モーダル内ボタンあたりを表示
+            }
+          };
         });
+
+        console.log(`    → 脈: ${plan.name} - ボタン総数=${debugInfo.totalButtons}, サンプル=${JSON.stringify(debugInfo.sampleTexts)}`);
 
         // デバッグ: 取得した時間帯の最初の5件を出力
         const first5Times = modalSlots.slice(0, 5).map(s => s.time);
