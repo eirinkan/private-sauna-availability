@@ -245,14 +245,10 @@ async function scrapeAll() {
       data.facilities.base = { error: e.message };
     }
 
-    // 脈 (spot-ly)
-    console.log('  - 脈 スクレイピング中...');
-    try {
-      data.facilities.myaku = await scrapeWithMonitoring('myaku', myaku.scrape, browser);
-    } catch (e) {
-      console.error('    脈 エラー:', e.message);
-      data.facilities.myaku = { error: e.message };
-    }
+    // 脈 (spot-ly) - スクレイピング一時停止（タイムアウト問題調査中）
+    // 他サイト（GIRAFFE、サウナヨーガン）の修正を検証するため一時無効化
+    console.log('  - 脈 スキップ（タイムアウト調査中）');
+    data.facilities.myaku = { dates: {} };
 
     // サウナヨーガン (reserva.be)
     console.log('  - サウナヨーガン スクレイピング中...');
