@@ -14,9 +14,22 @@
 const flaresolverr = require('../flaresolverr');
 const { analyzeScreenshot } = require('../ai-scraper');
 
-// キャッシュされたCloudflare Cookies（セッション中は再利用）
+// キャッシュされたCloudflare Cookies（TTL付きで再利用）
+const COOKIE_TTL_MS = 90 * 60 * 1000; // 90分（Cloudflare Cookieは通常2-24時間有効だが、安全マージン）
+
 let cachedCookies = null;
 let cachedUserAgent = null;
+let cacheExpiresAt = null;
+
+/**
+ * Cookieキャッシュを無効化
+ */
+function invalidateCache() {
+  cachedCookies = null;
+  cachedUserAgent = null;
+  cacheExpiresAt = null;
+  console.log('  → GIRAFFE: Cookieキャッシュを無効化');
+}
 
 // GIRAFFE 南天神店（統一フォーマット：部屋名（時間/定員）価格）
 const GIRAFFE_MINAMITENJIN_ROOMS = [
@@ -51,13 +64,17 @@ const GIRAFFE_TENJIN_ROOMS = [
 ];
 
 /**
- * FlareSolverrでCloudflare Cookieを取得
+ * FlareSolverrでCloudflare Cookieを取得（TTL付きキャッシュ）
  */
 async function getCloudfareCookies() {
-  if (cachedCookies && cachedUserAgent) {
+  // キャッシュが有効期限内なら再利用
+  if (cachedCookies && cachedUserAgent && cacheExpiresAt && Date.now() < cacheExpiresAt) {
+    const remainingMin = Math.round((cacheExpiresAt - Date.now()) / 60000);
+    console.log(`  → GIRAFFE: キャッシュ済みCookieを使用（残り${remainingMin}分）`);
     return { cookies: cachedCookies, userAgent: cachedUserAgent };
   }
 
+  // 有効期限切れまたは未取得の場合は新規取得
   try {
     const testUrl = 'https://reserva.be/giraffe_minamitenjin';
     console.log('  FlareSolverr: Cloudflare Cookie取得中...');
@@ -66,7 +83,8 @@ async function getCloudfareCookies() {
     if (cookies && cookies.length > 0) {
       cachedCookies = cookies;
       cachedUserAgent = userAgent;
-      console.log(`  FlareSolverr: Cookie ${cookies.length}個取得成功`);
+      cacheExpiresAt = Date.now() + COOKIE_TTL_MS;  // TTL設定
+      console.log(`  FlareSolverr: Cookie ${cookies.length}個取得成功（TTL: 90分）`);
       return { cookies, userAgent };
     }
   } catch (error) {
@@ -221,6 +239,7 @@ async function scrapeRoomWithCookies(browser, room, facilityName, cfData) {
     // 「Just a moment」「しばらくお待ちください」はCloudflareチャレンジ
     if (pageTitle.includes('Just a moment') || pageTitle.includes('しばらくお待ちください') || pageTitle === '') {
       console.log(`    ${facilityName}: Cloudflareチャレンジページ検出 - スキップ`);
+      invalidateCache();  // キャッシュを無効化して次回は再取得
       return {};
     }
 

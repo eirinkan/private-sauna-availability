@@ -167,17 +167,11 @@ async function scrape(browser) {
 
     console.log(`    → サウナヨーガン: 対象日 = ${targetDates.length}日`);
 
-    // 各日付の時間枠を取得
+    // 各日付の時間枠を取得（page.goto()を削減し、日付クリックのみで取得）
     for (let i = 0; i < targetDates.length; i++) {
       const dateId = targetDates[i];
 
-      // 2日目以降は再度ページにアクセス
-      if (i > 0) {
-        await page.goto(URL, { waitUntil: 'networkidle0', timeout: 60000 });
-        await new Promise(resolve => setTimeout(resolve, 3000));
-      }
-
-      // 日付をクリック（labelをクリック）
+      // 日付をクリック（labelをクリック）- ページ再読み込みなしでDOM更新
       const clicked = await page.evaluate((dateId) => {
         const label = document.querySelector(`label[for="${dateId}"]`);
         if (label) {

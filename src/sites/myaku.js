@@ -83,9 +83,22 @@ async function scrape(puppeteerBrowser) {
     await page.goto(directUrl, { waitUntil: 'networkidle2', timeout: 60000 });
     await new Promise(r => setTimeout(r, 3000));
 
-    // ページの読み込み確認
+    // ページの読み込み確認（ログ強化: 失敗時の状態を把握）
     const pageTitle = await page.title();
     console.log(`    → 脈: ページタイトル = "${pageTitle}"`);
+
+    // ページ内容の先頭部分をログ出力（デバッグ用）
+    const bodyPreview = await page.evaluate(() => {
+      const text = document.body?.innerText || '';
+      return text.substring(0, 200).replace(/\n/g, ' ');
+    });
+    console.log(`    → 脈: ページ内容プレビュー = "${bodyPreview}"`);
+
+    // Cloudflare/ボット検出ページの検出
+    if (pageTitle.includes('Just a moment') || pageTitle === '' || bodyPreview.includes('Checking your browser')) {
+      console.log('    → 脈: ボット検出ページ検出 - 要調査');
+      return { dates: {} };
+    }
 
     // カレンダーから空き状況を取得
     const calendars = await page.evaluate(() => {
@@ -133,6 +146,19 @@ async function scrape(puppeteerBrowser) {
     });
 
     console.log(`    → 脈: ${calendars.length}件のカレンダーを取得`);
+
+    // カレンダー取得失敗時のデバッグ情報
+    if (calendars.length === 0) {
+      console.log('    → 脈: カレンダー取得失敗 - 要調査');
+      // セレクタの存在確認
+      const debugInfo = await page.evaluate(() => {
+        const divideXCount = document.querySelectorAll('div[class*="divide-x"]').length;
+        const divideGrayCount = document.querySelectorAll('div[class*="divide-gray"]').length;
+        const calendarLikeCount = document.querySelectorAll('div.flex.divide-x').length;
+        return { divideXCount, divideGrayCount, calendarLikeCount };
+      });
+      console.log(`    → 脈: デバッグ情報 - divide-x: ${debugInfo.divideXCount}, divide-gray: ${debugInfo.divideGrayCount}, calendar-like: ${debugInfo.calendarLikeCount}`);
+    }
 
     // 結果を整理
     for (let planIndex = 0; planIndex < Math.min(calendars.length, PLANS.length); planIndex++) {
