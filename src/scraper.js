@@ -245,11 +245,14 @@ async function scrapeAll() {
       data.facilities.base = { error: e.message };
     }
 
-    // 脈 (spot-ly) - スクレイピング一時停止（ボット検出により正確なデータ取得不可）
-    // spot-ly.jpのボット検出がCloud Run環境で回避できないため、一時的に無効化
-    // 公式サイトリンクは引き続き表示されるので、ユーザーは直接予約可能
-    console.log('  - 脈 スキップ（ボット検出対策中）');
-    data.facilities.myaku = { dates: {} };
+    // 脈 (spot-ly)
+    console.log('  - 脈 スクレイピング中...');
+    try {
+      data.facilities.myaku = await scrapeWithMonitoring('myaku', myaku.scrape, browser);
+    } catch (e) {
+      console.error('    脈 エラー:', e.message);
+      data.facilities.myaku = { error: e.message };
+    }
 
     // サウナヨーガン (reserva.be)
     console.log('  - サウナヨーガン スクレイピング中...');

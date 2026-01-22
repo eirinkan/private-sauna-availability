@@ -175,6 +175,23 @@ async function scrape(puppeteerBrowser) {
     await page.goto(directUrl, { waitUntil: 'networkidle0', timeout: 60000 });
     await new Promise(r => setTimeout(r, 3000));
 
+    // ページの読み込み確認（ログ強化: 失敗時の状態を把握）
+    const pageTitle = await page.title();
+    console.log(`    → 脈: ページタイトル = "${pageTitle}"`);
+
+    // ページ内容の先頭部分をログ出力（デバッグ用）
+    const bodyPreview = await page.evaluate(() => {
+      const text = document.body?.innerText || '';
+      return text.substring(0, 200).replace(/\n/g, ' ');
+    });
+    console.log(`    → 脈: ページ内容プレビュー = "${bodyPreview.substring(0, 100)}..."`);
+
+    // Cloudflare/ボット検出ページの検出
+    if (pageTitle.includes('Just a moment') || pageTitle === '' || bodyPreview.includes('Checking your browser')) {
+      console.log('    → 脈: ボット検出ページ検出 - 要調査');
+      return { dates: {} };
+    }
+
     // react-select要素（人数ドロップダウン）が表示されるまで待機
     try {
       await page.waitForFunction(() => {
