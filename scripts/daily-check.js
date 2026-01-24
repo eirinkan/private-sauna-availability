@@ -160,7 +160,7 @@ async function runHealthCheck() {
     console.log('[リトライ] API取得に失敗したため、次の時間帯で再試行します');
 
     await sendDesktopNotification(
-      '❌ サウナチェッカー - API接続エラー',
+      '❌ サウナ空き状況 - 接続エラー',
       `${error.message}\n次の時間帯で再試行します`,
       dateStr,
       'Basso'
@@ -174,9 +174,9 @@ async function runHealthCheck() {
     // エラーあり
     const message = errors.join('\n');
     await sendDesktopNotification(
-      '⚠️ スクレイピング異常検出',
+      '⚠️ サウナ空き状況 - 異常検出',
       message,
-      `${dateStr} チェック結果`,
+      `${dateStr}`,
       'Basso'
     );
     console.log('[通知] エラー検出 - デスクトップ通知送信');
@@ -188,9 +188,9 @@ async function runHealthCheck() {
     }).join(', ');
 
     await sendDesktopNotification(
-      '✅ スクレイピング正常',
+      '✅ サウナ空き状況 - 正常',
       summary,
-      `${dateStr} チェック結果`,
+      `${dateStr}`,
       'Glass'
     );
     console.log('[通知] 正常 - デスクトップ通知送信');
