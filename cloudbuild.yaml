@@ -44,6 +44,33 @@ steps:
       - '900'
       - '--set-env-vars'
       - 'PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true,PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium,FLARESOLVERR_URL=https://flaresolverr-526007709848.asia-northeast1.run.app/v1,CLOUD_RUN=true,GCS_BUCKET=private-sauna-data'
+      - '--min-instances'
+      - '0'
+      - '--max-instances'
+      - '1'
+
+  # 古いDockerイメージを自動削除（最新5つを残す）
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo "古いイメージの削除を開始..."
+        # latestタグ以外の全ダイジェストを取得し、古いものから削除（最新5つは保持）
+        gcloud artifacts docker images list \
+          asia-northeast1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/private-sauna-availability \
+          --include-tags --format="get(version)" --sort-by="~UPDATE_TIME" \
+          --filter="tags!='latest'" \
+          | tail -n +6 \
+          | while read -r digest; do
+              if [ -n "$$digest" ]; then
+                echo "削除中: $$digest"
+                gcloud artifacts docker images delete \
+                  "asia-northeast1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/private-sauna-availability@$$digest" \
+                  --quiet --delete-tags 2>/dev/null || true
+              fi
+            done
+        echo "古いイメージの削除完了"
 
 images:
   - 'asia-northeast1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/private-sauna-availability:$COMMIT_SHA'

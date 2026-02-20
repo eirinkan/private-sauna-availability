@@ -98,7 +98,7 @@ gcloud run deploy private-sauna-availability \
   --allow-unauthenticated \
   --memory 2Gi \
   --timeout 900 \
-  --min-instances 1 \
+  --min-instances 0 \
   --max-instances 1
 ```
 
@@ -108,7 +108,7 @@ gcloud run deploy private-sauna-availability \
 |------|-----|------|
 | memory | 2Gi | Puppeteer/Chromium起動に必要 |
 | timeout | 900秒 | 8施設のスクレイピングに8-10分かかる |
-| min-instances | 1 | データ永続化（エフェメラルFS対策） |
+| min-instances | 0 | コスト削減（使用時のみ起動） |
 | max-instances | 1 | 同一インスタンスでデータ保持 |
 
 ## Cloud Scheduler設定（定期実行）
@@ -174,8 +174,9 @@ gcloud scheduler jobs create http sauna-refresh-job \
 ## 注意事項
 
 - スクレイピングは各サイトの利用規約を確認の上、適切な頻度で実行してください
-- Cloud Runのmin/max-instances=1設定は、ローカルファイルシステムでのデータ永続化のために必要です
-- 本格運用時はCloud StorageやFirestoreなど永続的なストレージへの移行を推奨します
+- Cloud Runはmin-instances=0（コスト削減）で運用。データはGCSに永続化済み
+- コールドスタート時（0台→1台）に15〜30秒の遅延が発生しますが、APIレスポンスはGCS読み込みのため数秒で返ります
+- スクレイピングはCloud Scheduler経由の `/api/refresh` で実行。サーバー起動時の自動実行はありません
 
 ## ライセンス
 

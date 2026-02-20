@@ -797,15 +797,6 @@ app.get('/api/debug/giraffe', async (req, res) => {
 // サーバー起動
 app.listen(PORT, () => {
   console.log(`サーバー起動: http://localhost:${PORT}`);
-
-  // 起動時に初回スクレイピング実行（setImmediateで遅延実行し、Expressコールバック外で実行）
-  setImmediate(async () => {
-    console.log('初回スクレイピング開始...');
-    try {
-      await scrapeAll();
-      console.log('初回スクレイピング完了');
-    } catch (error) {
-      console.error('初回スクレイピングエラー:', error.message);
-    }
-  });
+  // スクレイピングはCloud Scheduler経由の /api/refresh で実行
+  // GCSに保存済みの最新データが /api/availability で返される
 });

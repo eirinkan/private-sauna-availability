@@ -183,9 +183,21 @@ async function scrapeWithMonitoring(siteName, scrapeFunc, browser) {
   }
 }
 
+// スクレイピングの二重実行防止
+let isScraping = false;
+
 // 全サイトスクレイピング
 async function scrapeAll() {
-  const browser = await launchBrowser();
+  if (isScraping) {
+    console.log('スクレイピングは既に実行中です。スキップします。');
+    throw new Error('スクレイピングは既に実行中です');
+  }
+  isScraping = true;
+
+  const browser = await launchBrowser().catch(e => {
+    isScraping = false;
+    throw e;
+  });
   const data = await loadData();
   data.lastUpdated = new Date().toISOString();
   data.facilities = {};
@@ -282,6 +294,7 @@ async function scrapeAll() {
     return data;
   } finally {
     await browser.close();
+    isScraping = false;
   }
 }
 

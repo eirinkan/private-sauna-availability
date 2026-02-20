@@ -8,11 +8,11 @@
     <key>ProgramArguments</key>
     <array>
         <string>/usr/local/bin/node</string>
-        <string>/Users/shigetomieirin/dev/サウナ/scripts/daily-check.js</string>
+        <string>/Users/shigetomieirin/dev/プライベート/サウナ/scripts/daily-check.js</string>
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/shigetomieirin/dev/サウナ</string>
+    <string>/Users/shigetomieirin/dev/プライベート/サウナ</string>
 
     <!-- 9時から21時まで1時間ごとに実行 -->
     <key>StartCalendarInterval</key>
@@ -98,10 +98,10 @@
     </array>
 
     <key>StandardOutPath</key>
-    <string>/Users/shigetomieirin/dev/サウナ/logs/daily-check.log</string>
+    <string>/Users/shigetomieirin/dev/プライベート/サウナ/logs/daily-check.log</string>
 
     <key>StandardErrorPath</key>
-    <string>/Users/shigetomieirin/dev/サウナ/logs/daily-check-error.log</string>
+    <string>/Users/shigetomieirin/dev/プライベート/サウナ/logs/daily-check-error.log</string>
 
     <key>EnvironmentVariables</key>
     <dict>
