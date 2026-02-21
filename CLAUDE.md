@@ -1,5 +1,10 @@
 # プロジェクト固有ルール
 
+## Google Cloudプロジェクト
+- **プロジェクト名:** private-sauna-availability
+- **プロジェクトID:** gen-lang-client-0618658411
+- **用途:** サウナアプリ（Cloud Run）
+
 ## 共通ルール
 
 ### 部屋名の重複禁止
