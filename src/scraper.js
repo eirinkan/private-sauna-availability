@@ -186,6 +186,73 @@ async function scrapeWithMonitoring(siteName, scrapeFunc, browser) {
 // スクレイピングの二重実行防止
 let isScraping = false;
 
+// グループA: RESERVA系（直列 - FlareSolverr Cookie共有のため）
+async function scrapeReservaGroup(browser, data) {
+  console.log('  [グループA: RESERVA系 - 直列処理開始]');
+
+  // GIRAFFE 南天神 (RESERVA)
+  console.log('  - GIRAFFE南天神 スクレイピング中...');
+  try {
+    data.facilities.giraffeMiamitenjin = await scrapeWithMonitoring('giraffeMiamitenjin', reserva.scrapeMiamitenjin, browser);
+  } catch (e) {
+    console.error('    GIRAFFE南天神 エラー:', e.message);
+    data.facilities.giraffeMiamitenjin = { error: e.message };
+  }
+
+  // GIRAFFE 天神 (RESERVA) - Cookie再利用で高速化
+  console.log('  - GIRAFFE天神 スクレイピング中...');
+  try {
+    data.facilities.giraffeTenjin = await scrapeWithMonitoring('giraffeTenjin', reserva.scrapeTenjin, browser);
+  } catch (e) {
+    console.error('    GIRAFFE天神 エラー:', e.message);
+    data.facilities.giraffeTenjin = { error: e.message };
+  }
+
+  // サウナヨーガン (reserva.be) - Cookie再利用で高速化
+  console.log('  - サウナヨーガン スクレイピング中...');
+  try {
+    data.facilities.yogan = await scrapeWithMonitoring('yogan', yogan.scrape, browser);
+  } catch (e) {
+    console.error('    サウナヨーガン エラー:', e.message);
+    data.facilities.yogan = { error: e.message };
+  }
+
+  console.log('  [グループA: RESERVA系 - 完了]');
+}
+
+// グループB: 独立系（並列 - 互いに依存しない）
+async function scrapeIndependentGroup(browser, data) {
+  console.log('  [グループB: 独立系 - 並列処理開始]');
+
+  const tasks = [
+    { key: 'myaku', name: '脈', fn: myaku.scrape },
+    { key: 'kudochi', name: 'KUDOCHI', fn: hacomono.scrape },
+    { key: 'sakurado', name: 'SAKURADO', fn: sakurado.scrape },
+    { key: 'saunaOoo', name: 'SAUNA OOO', fn: gflow.scrape },
+    { key: 'base', name: 'BASE', fn: coubic.scrape },
+  ];
+
+  for (const t of tasks) {
+    console.log(`  - ${t.name} スクレイピング開始...`);
+  }
+
+  const results = await Promise.allSettled(
+    tasks.map(t => scrapeWithMonitoring(t.key, t.fn, browser))
+  );
+
+  results.forEach((r, i) => {
+    if (r.status === 'fulfilled') {
+      data.facilities[tasks[i].key] = r.value;
+      console.log(`  - ${tasks[i].name} 完了`);
+    } else {
+      console.error(`    ${tasks[i].name} エラー:`, r.reason.message);
+      data.facilities[tasks[i].key] = { error: r.reason.message };
+    }
+  });
+
+  console.log('  [グループB: 独立系 - 完了]');
+}
+
 // 全サイトスクレイピング
 async function scrapeAll() {
   if (isScraping) {
@@ -203,83 +270,13 @@ async function scrapeAll() {
   data.facilities = {};
 
   try {
-    // === 重点監視対象（RESERVA系 - Cloudflare保護あり）を最初に処理 ===
-    // FlareSolverr Cookie取得が必要なため、処理時間が長い
-    // タイムアウトの影響を受けにくいよう、最初に実行する
-
-    // GIRAFFE 南天神 (RESERVA)
-    console.log('  - GIRAFFE南天神 スクレイピング中...');
-    try {
-      data.facilities.giraffeMiamitenjin = await scrapeWithMonitoring('giraffeMiamitenjin', reserva.scrapeMiamitenjin, browser);
-    } catch (e) {
-      console.error('    GIRAFFE南天神 エラー:', e.message);
-      data.facilities.giraffeMiamitenjin = { error: e.message };
-    }
-
-    // GIRAFFE 天神 (RESERVA) - Cookie再利用で高速化
-    console.log('  - GIRAFFE天神 スクレイピング中...');
-    try {
-      data.facilities.giraffeTenjin = await scrapeWithMonitoring('giraffeTenjin', reserva.scrapeTenjin, browser);
-    } catch (e) {
-      console.error('    GIRAFFE天神 エラー:', e.message);
-      data.facilities.giraffeTenjin = { error: e.message };
-    }
-
-    // サウナヨーガン (reserva.be) - Cookie再利用で高速化
-    console.log('  - サウナヨーガン スクレイピング中...');
-    try {
-      data.facilities.yogan = await scrapeWithMonitoring('yogan', yogan.scrape, browser);
-    } catch (e) {
-      console.error('    サウナヨーガン エラー:', e.message);
-      data.facilities.yogan = { error: e.message };
-    }
-
-    // 脈 (spot-ly) - 処理時間が比較的長い
-    console.log('  - 脈 スクレイピング中...');
-    try {
-      data.facilities.myaku = await scrapeWithMonitoring('myaku', myaku.scrape, browser);
-    } catch (e) {
-      console.error('    脈 エラー:', e.message);
-      data.facilities.myaku = { error: e.message };
-    }
-
-    // === 通常施設（Cloudflare保護なし - 処理が高速）===
-
-    // KUDOCHI (hacomono)
-    console.log('  - KUDOCHI スクレイピング中...');
-    try {
-      data.facilities.kudochi = await scrapeWithMonitoring('kudochi', hacomono.scrape, browser);
-    } catch (e) {
-      console.error('    KUDOCHI エラー:', e.message);
-      data.facilities.kudochi = { error: e.message };
-    }
-
-    // SAKURADO
-    console.log('  - SAKURADO スクレイピング中...');
-    try {
-      data.facilities.sakurado = await scrapeWithMonitoring('sakurado', sakurado.scrape, browser);
-    } catch (e) {
-      console.error('    SAKURADO エラー:', e.message);
-      data.facilities.sakurado = { error: e.message };
-    }
-
-    // SAUNA OOO (gflow)
-    console.log('  - SAUNA OOO スクレイピング中...');
-    try {
-      data.facilities.saunaOoo = await scrapeWithMonitoring('saunaOoo', gflow.scrape, browser);
-    } catch (e) {
-      console.error('    SAUNA OOO エラー:', e.message);
-      data.facilities.saunaOoo = { error: e.message };
-    }
-
-    // BASE (Coubic)
-    console.log('  - BASE スクレイピング中...');
-    try {
-      data.facilities.base = await scrapeWithMonitoring('base', coubic.scrape, browser);
-    } catch (e) {
-      console.error('    BASE エラー:', e.message);
-      data.facilities.base = { error: e.message };
-    }
+    // グループA（RESERVA系・直列）とグループB（独立系・並列）を同時実行
+    console.log('  並列スクレイピング開始（グループA + グループB 同時実行）');
+    await Promise.all([
+      scrapeReservaGroup(browser, data),
+      scrapeIndependentGroup(browser, data)
+    ]);
+    console.log('  並列スクレイピング完了');
 
     // ヘルスサマリーをログ出力
     const healthSummary = healthMonitor.getHealthSummary();
