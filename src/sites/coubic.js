@@ -10,13 +10,16 @@
  * - 平日プランと土日プランを両方スクレイピングして統合
  */
 
+const { isHoliday } = require('../utils/holidays');
+
 const BOOKING_URL = 'https://coubic.com/base-private-sauna/3957380/book';
 
 // コース種別（表示用）- 統一フォーマット：部屋名（時間/定員）価格
 const COURSE_NAMES = ['BASE（120分/定員2名）¥6,500-10,800'];
 
-// 日付が平日かどうか判定
+// 日付が平日かどうか判定（土日・祝日を除く）
 function isWeekdayDate(dateStr) {
+  if (isHoliday(dateStr)) return false;
   const date = new Date(dateStr);
   const day = date.getDay();
   return day >= 1 && day <= 5; // 月〜金
