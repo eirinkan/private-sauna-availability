@@ -29,6 +29,7 @@ cache/
 
 # Screenshots
 *.png
+!public/og-image.png
 
 # Test files
 test-*.js
