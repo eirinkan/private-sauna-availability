@@ -126,11 +126,9 @@ async function notifyHealthCheckResult(results) {
     message = results.warnings.join('\n').substring(0, 200);
     sound = 'Purr';
   } else {
-    // 正常の場合
-    title = '✅ サウナチェッカー - 正常';
-    subtitle = `${date} のチェック結果`;
-    message = `${facilityCount}施設、合計${totalSlots}枠の空きあり`;
-    sound = 'Glass';
+    // 正常の場合 - 通知しない
+    console.log(`[正常] ${facilityCount}施設、合計${totalSlots}枠の空きあり - 通知スキップ`);
+    return true;
   }
 
   try {

@@ -181,19 +181,8 @@ async function runHealthCheck() {
     );
     console.log('[通知] エラー検出 - デスクトップ通知送信');
   } else {
-    // 正常
-    const summary = WATCH_TARGETS.map(t => {
-      const stats = facilityStats[t.keyword];
-      return `${stats.shortName}: ${stats.totalSlots}枠`;
-    }).join(', ');
-
-    await sendDesktopNotification(
-      '✅ サウナ空き状況 - 正常',
-      summary,
-      `${dateStr}`,
-      'Glass'
-    );
-    console.log('[通知] 正常 - デスクトップ通知送信');
+    // 正常 - 通知なし（コンソールログのみ）
+    console.log('[正常] 全施設正常 - デスクトップ通知スキップ');
   }
 
   return { hasError: errors.length > 0, errors };
