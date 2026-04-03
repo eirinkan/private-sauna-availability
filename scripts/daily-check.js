@@ -89,7 +89,9 @@ async function runHealthCheck() {
       shortName: target.shortName,
       totalSlots: 0,
       daysWithSlots: 0,
-      found: false
+      found: false,
+      hasScraperError: false,  // スクレイパーエラーがあったか
+      lastError: null          // 最後のエラーメッセージ
     };
   }
 
@@ -109,6 +111,11 @@ async function runHealthCheck() {
           const facility = findWatchedFacility(data.facilities, target.keyword);
           if (facility) {
             facilityStats[target.keyword].found = true;
+            // スクレイパーエラーの有無を記録
+            if (facility.error) {
+              facilityStats[target.keyword].hasScraperError = true;
+              facilityStats[target.keyword].lastError = facility.error;
+            }
             const slots = facility.rooms.reduce((sum, room) => sum + room.availableSlots.length, 0);
             facilityStats[target.keyword].totalSlots += slots;
             if (slots > 0) {
@@ -141,9 +148,13 @@ async function runHealthCheck() {
       if (!stats.found) {
         errors.push(`${stats.shortName}: 施設データが見つからない`);
       }
-      // 7日間すべて空き0件の場合はスクレイピング故障の可能性大
+      // スクレイパーエラーありで0件 → 故障
+      else if (stats.totalSlots === 0 && stats.hasScraperError) {
+        errors.push(`${stats.shortName}: スクレイピングエラー（${stats.lastError}）`);
+      }
+      // スクレイパー正常で0件 → 本当に売り切れ（通知しない）
       else if (stats.totalSlots === 0) {
-        errors.push(`${stats.shortName}: 7日間すべて空き0件（スクレイピング故障の可能性）`);
+        console.log(`  ※ ${stats.shortName}: 全日程売り切れ（スクレイパー正常動作）`);
       }
     }
 
