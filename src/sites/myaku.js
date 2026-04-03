@@ -27,43 +27,46 @@ const flaresolverr = require('../flaresolverr');
 const BASE_URL = 'https://spot-ly.jp/ja/hotels/176';
 
 // プラン情報（ページ上のボタン順序に対応）
+// 2026-04-03更新: サイトのプラン構成が7→9プランに変更
+// timeSlotCountは動的に計算するため定義不要
 const PLANS = [
   {
     pageIndex: 0,
-    name: '休 KYU（90分/定員3名）¥9,130〜',
-    timeSlotCount: 5, // 11:30〜13:00, 13:30〜15:00, 15:30〜17:00, 17:30〜19:00, 19:30〜21:00
+    name: '休 KYU（150分/定員3名）¥9,130〜',
   },
   {
     pageIndex: 1,
-    name: '水 MIZU（night/定員2名）¥8,800〜',
-    timeSlotCount: 1, // 1:00〜8:30
-    isNight: true,
+    name: '休 KYU（120分/定員3名）¥9,130〜',
   },
   {
     pageIndex: 2,
-    name: '水 MIZU（90分午後/定員2名）¥6,600〜',
-    timeSlotCount: 6, // 13:00〜14:30, 15:00〜16:30, 17:00〜18:30, 19:00〜20:30, 21:00〜22:30, 23:00〜0:30
+    name: '休 KYU（90分/定員3名）¥9,130〜',
   },
   {
     pageIndex: 3,
-    name: '水 MIZU（90分午前/定員2名）¥6,600〜',
-    timeSlotCount: 2, // 9:00〜10:30, 11:00〜12:30
-  },
-  {
-    pageIndex: 4,
-    name: '火 HI（night/定員4名）¥10,120〜',
-    timeSlotCount: 1, // 0:30〜8:00
+    name: '水 MIZU（night/定員2名）¥8,800〜',
     isNight: true,
   },
   {
+    pageIndex: 4,
+    name: '水 MIZU（90分/定員2名）¥6,600〜',
+  },
+  {
     pageIndex: 5,
-    name: '火 HI（90分午後/定員4名）¥7,150〜',
-    timeSlotCount: 5, // 14:30〜16:00, 16:30〜18:00, 18:30〜20:00, 20:30〜22:00, 22:30〜0:00
+    name: '火 HI（night/定員4名）¥10,120〜',
+    isNight: true,
   },
   {
     pageIndex: 6,
-    name: '火 HI（90分午前/定員4名）¥7,150〜',
-    timeSlotCount: 3, // 8:30〜10:00, 10:30〜12:00, 12:30〜14:00
+    name: '火 HI（150分/定員4名）¥7,150〜',
+  },
+  {
+    pageIndex: 7,
+    name: '火 HI（120分/定員4名）¥7,150〜',
+  },
+  {
+    pageIndex: 8,
+    name: '火 HI（90分/定員4名）¥7,150〜',
   }
 ];
 
@@ -357,12 +360,11 @@ async function scrape(puppeteerBrowser) {
         console.log(`    → 脈: ${plan.name} - 取得セル数=${modalSlots.length}`);
 
         if (modalSlots.length > 0) {
-          // 固定値を使用: 7日分のカレンダー、プラン定義のtimeSlotCount
+          // 7日分のカレンダーからtimeSlotCountを動的に計算
           const dateCount = 7;
-          const timeSlotCount = plan.timeSlotCount;
-          const expectedTotal = dateCount * timeSlotCount;
+          const timeSlotCount = Math.floor(modalSlots.length / dateCount);
 
-          console.log(`    → 脈: ${plan.name} - 期待値: ${dateCount}日 × ${timeSlotCount}時間帯 = ${expectedTotal}セル, 実際: ${modalSlots.length}セル`);
+          console.log(`    → 脈: ${plan.name} - ${dateCount}日 × ${timeSlotCount}時間帯 = ${dateCount * timeSlotCount}セル (実際: ${modalSlots.length}セル)`);
 
           // テーブル構造: DOMは列優先（column-major）で配置
           // スロットの順序: (1日目時間帯1〜5), (2日目時間帯1〜5), ...
