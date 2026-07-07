@@ -163,31 +163,18 @@ const timeRange = timeParts[0].replace(/^0/, '') + '〜' + timeParts[1].replace(
 
 ### spot-ly.jp (脈)
 - 認証: **ログイン不要**
-- URL形式: `?checkinDatetime=YYYY-MM-DD+00%3A00%3A00&checkoutDatetime=...`
-- 空き判定: ボタンの`disabled`属性で判定
+- **ブラウザ不要**: 予約ページが内部で使うJSON APIを直接呼ぶ（2026-07-07に実証）
+  - 部屋・プラン一覧: `https://api.spot-ly.jp/api/v2/spotly/hotels/176/room_types?checkinDatetime=X+00:00:00&checkoutDatetime=Y+00:00:00&roomTypeCategory=`
+    - checkin < checkout が必須（同一日は422エラー）
+  - 空き時間帯: `https://api.spot-ly.jp/api/v2/spotly/room_types/{部屋ID}/fixed_plans/{プランID}/available_times?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD`
+- 必要ヘッダーは `User-Agent` と `Accept: application/json` のみ（Cookie・認証・FlareSolverr不要）
+- 時刻はUTCで返るため、JSTへ+9時間変換が必要
+- 空き判定: `isAvailable: true`
+- 旧方式（Puppeteer + FlareSolverr + react-select操作）は本番でreact-select描画待ちの失敗、spot-ly側の504エラー、プラン並び順のインデックス依存など複数の脆弱性があり、間欠失敗を起こしていたため使用禁止
 
-#### 脈スクレイパーの重要な技術的注意点（2026-01-22修正）
-
-1. **タイムゾーン設定が必須**
-   - Cloud RunはUTCで動作するため、`page.emulateTimezone('Asia/Tokyo')` を必ず設定すること
-   - これがないと時間帯が9時間ずれる（11:30→02:30）
-   - spot-ly.jpがブラウザのタイムゾーンに基づいて時間を表示するため
-
-2. **正規表現は `[0-9]` を使用**
-   - `\d` はCloud Run環境（Puppeteer/Chromium）で動作しないことがある
-   - 時間帯抽出には `/([0-9]{1,2}:[0-9]{2})-([0-9]{1,2}:[0-9]{2})/` を使用
-
-3. **ボタンテキストの形式**
-   - モーダル内の時間帯ボタンは `11:30-13:00` 形式（ハイフン区切り）
-   - 子要素は `<span>11:30</span><span>-</span><span>13:00</span>` だが、textContentで取得可能
-
-4. **過去の不具合と対処**
-   | 症状 | 原因 | 対処 |
-   |------|------|------|
-   | 時間が9時間ずれる | タイムゾーン未設定 | `page.emulateTimezone('Asia/Tokyo')` |
-   | 時間帯が0件 | `\d`が動作しない | `[0-9]`に変更 |
-   | タイムアウト | 処理時間超過 | 全体タイムアウト2分設定 |
-   | モーダルが開かない | react-selectの操作失敗 | mousedownイベントで発火 |
+#### ナイトパックの日付表示
+- APIは深夜開始（例: `2026-07-08T00:30:00 JST`）で「7/7の夜」の枠として返す
+- アプリ上は前日（=入店する夜の日付）にまとめ、時間帯を「翌M/D H:MM〜H:MM」形式で表示
 
 ### reserva.be (GIRAFFE, サウナヨーガン)
 - 認証: **ログイン不要**

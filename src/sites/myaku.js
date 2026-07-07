@@ -1,454 +1,181 @@
 /**
  * 脈 -MYAKU PRIVATE SAUNA- (spot-ly) スクレイパー
- * URL: https://spot-ly.jp/ja/hotels/176
+ * 予約ページ: https://spot-ly.jp/ja/hotels/176
  *
- * 重要ルール:
- * - カレンダーの◯✕マークは使用禁止（日単位の空き状況のみで具体的な時間帯がわからない）
- * - 必ずモーダルを開いて時間帯ボタンのdisabled属性で判定
+ * 方式: 予約ページが内部で使う空き状況API（JSON）を直接呼ぶ
+ * - 旧方式（Puppeteer + FlareSolverrで人数選択→モーダル操作）は本番環境で
+ *   react-select要素の描画待ちやspot-ly側の504エラーで間欠的に失敗していた。
+ *   さらにプランのボタン順序をインデックス固定で想定していたため、サイトの
+ *   プラン並び順が変わるとプラン名と時間帯の対応がズレる問題もあった。
+ *   → 2026-07-07にAPI直接方式へ全面変更（ブラウザ・FlareSolverr不要）
  *
- * スクレイピングフロー:
- * 1. FlareSolverrでCookieとUserAgentを取得（ボット検出回避）
- * 2. 7日間の日付範囲パラメータ付きURLにアクセス（1回だけ）
- * 3. 各プランに対して：
- *    - 人数を1名に設定
- *    - 「予約する」ボタンをクリックしてモーダルを開く
- *    - モーダル内の7日×時間帯テーブルからdisabled属性で空き判定
- *    - Escapeでモーダルを閉じる
+ * APIの構造（ホスト: api.spot-ly.jp）:
+ * 1. 部屋・プラン一覧: /api/v2/spotly/hotels/176/room_types
+ *    ?checkinDatetime=YYYY-MM-DD+00:00:00&checkoutDatetime=（翌日）&roomTypeCategory=
+ *    ※ checkin < checkout でないと422エラー
+ *    → data[].id（部屋ID）, data[].name（部屋名）, data[].capacity.maxNumberOfGuest,
+ *      data[].plans[].id（プランID）, data[].plans[].name（プラン名）
+ * 2. 空き時間帯: /api/v2/spotly/room_types/{部屋ID}/fixed_plans/{プランID}/available_times
+ *    ?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
+ *    → [{startDateTime, endDateTime, isAvailable}]（時刻はUTC、JSTへ+9時間変換が必要）
+ * - 認証・Cookie不要（User-AgentとAccept: application/jsonのみ）
  *
- * 注意: FlareSolverr + puppeteer-extra-plugin-stealthを使用（ボット検出回避）
+ * ナイトパックの扱い:
+ * - APIのナイトパック枠はJST深夜開始（例: 7/8 00:30〜9:00 = 「7/7の夜」の枠）
+ * - アプリ上は前日（=入店する夜の日付）に載せ、時間帯は「翌M/D H:MM〜H:MM」形式
+ *   （ナイトパック統一形式: 翌日の日付を先頭に付与）
  */
 
-const puppeteerExtra = require('puppeteer-extra');
-const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-puppeteerExtra.use(StealthPlugin());
+const API_BASE = 'https://api.spot-ly.jp/api/v2/spotly';
+const HOTEL_ID = 176;
 
-const flaresolverr = require('../flaresolverr');
-
-const BASE_URL = 'https://spot-ly.jp/ja/hotels/176';
-
-// プラン情報（ページ上のボタン順序に対応）
-// 2026-04-03更新: サイトのプラン構成が7→9プランに変更
-// timeSlotCountは動的に計算するため定義不要
-const PLANS = [
-  {
-    pageIndex: 0,
-    name: '休 KYU（150分/定員3名）¥9,130〜',
-  },
-  {
-    pageIndex: 1,
-    name: '休 KYU（120分/定員3名）¥9,130〜',
-  },
-  {
-    pageIndex: 2,
-    name: '休 KYU（90分/定員3名）¥9,130〜',
-  },
-  {
-    pageIndex: 3,
-    name: '水 MIZU（night/定員2名）¥8,800〜',
-    isNight: true,
-  },
-  {
-    pageIndex: 4,
-    name: '水 MIZU（90分/定員2名）¥6,600〜',
-  },
-  {
-    pageIndex: 5,
-    name: '火 HI（night/定員4名）¥10,120〜',
-    isNight: true,
-  },
-  {
-    pageIndex: 6,
-    name: '火 HI（150分/定員4名）¥7,150〜',
-  },
-  {
-    pageIndex: 7,
-    name: '火 HI（120分/定員4名）¥7,150〜',
-  },
-  {
-    pageIndex: 8,
-    name: '火 HI（90分/定員4名）¥7,150〜',
-  }
+// 部屋ごとの表示設定（価格はAPIから取れないため固定値）
+// matcher: room_types APIの部屋名に含まれる文字列
+const ROOM_CONFIG = [
+  { matcher: 'KYU', displayRoom: '休 KYU', dayPrice: '¥9,130〜', nightPrice: '¥9,130〜' },
+  { matcher: 'MIZU', displayRoom: '水 MIZU', dayPrice: '¥6,600〜', nightPrice: '¥8,800〜' },
+  { matcher: 'HI', displayRoom: '火 HI', dayPrice: '¥7,150〜', nightPrice: '¥10,120〜' }
 ];
 
-/**
- * ローカル日付をYYYY-MM-DD形式で取得
- */
-function formatLocalDate(date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+const FETCH_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Accept': 'application/json',
+  'Accept-Language': 'ja'
+};
+
+// JSONを取得（エラー時はthrowしてヘルスチェックで検知できるようにする）
+async function fetchJson(url) {
+  const res = await fetch(url, { headers: FETCH_HEADERS, signal: AbortSignal.timeout(30000) });
+  if (!res.ok) {
+    throw new Error(`脈 API エラー: ${res.status} ${url}`);
+  }
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.includes('json')) {
+    throw new Error(`脈 API が JSON 以外を返却: ${contentType} ${url}`);
+  }
+  return res.json();
 }
 
-/**
- * FlareSolverrでspot-ly.jpのCookieを取得（ボット検出回避）
- */
-async function getSpotlyCookies() {
-  try {
-    console.log('    → 脈: FlareSolverr Cookie取得中...');
-    const { cookies, userAgent } = await flaresolverr.getPageHtml(BASE_URL, 60000);
-
-    if (cookies && cookies.length > 0) {
-      console.log(`    → 脈: Cookie ${cookies.length}個取得成功`);
-      return { cookies, userAgent };
-    }
-  } catch (error) {
-    console.log(`    → 脈: FlareSolverr Cookie取得失敗 - ${error.message}`);
-  }
-
-  return null;
+// JST基準の今日からn日後の日付をYYYY-MM-DD形式で返す（Cloud RunはUTC動作のため手動変換）
+function jstDateStr(daysFromToday) {
+  const jst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  jst.setUTCDate(jst.getUTCDate() + daysFromToday);
+  const y = jst.getUTCFullYear();
+  const m = String(jst.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(jst.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
-// 全体タイムアウト（2分）
-const SCRAPE_TIMEOUT_MS = 120000;
-
-async function scrape(puppeteerBrowser) {
-  console.log('    → 脈: FlareSolverr + Stealthプラグインでスクレイピング開始');
-
-  const startTime = Date.now();
-
-  // タイムアウトチェック関数
-  const isTimedOut = () => {
-    const elapsed = Date.now() - startTime;
-    if (elapsed > SCRAPE_TIMEOUT_MS) {
-      console.log(`    → 脈: 全体タイムアウト (${Math.round(elapsed / 1000)}秒経過)`);
-      return true;
-    }
-    return false;
+// UTC文字列をJSTの{dateStr, hour, minute}に変換
+function toJst(utcStr) {
+  const t = new Date(utcStr);
+  const jst = new Date(t.getTime() + 9 * 60 * 60 * 1000);
+  return {
+    dateStr: `${jst.getUTCFullYear()}-${String(jst.getUTCMonth() + 1).padStart(2, '0')}-${String(jst.getUTCDate()).padStart(2, '0')}`,
+    month: jst.getUTCMonth() + 1,
+    day: jst.getUTCDate(),
+    time: `${jst.getUTCHours()}:${String(jst.getUTCMinutes()).padStart(2, '0')}`
   };
+}
 
-  // FlareSolverrからCookieを取得（ボット検出回避）
-  let cfData = null;
-  const isFlareSolverrAvailable = await flaresolverr.isAvailable();
-  if (isFlareSolverrAvailable) {
-    cfData = await getSpotlyCookies();
-  } else {
-    console.log('    → 脈: FlareSolverr利用不可（直接アクセス）');
+// プラン名から時間表記を抽出（【休 -KYU-】90分プラン → 90分、ナイトパック → night）
+function planDuration(planName) {
+  if (planName.includes('ナイトパック')) return 'night';
+  const match = planName.match(/(\d+)分/);
+  return match ? `${match[1]}分` : null;
+}
+
+// browser引数は他スクレイパーとのインターフェース統一のため受け取るが使用しない
+async function scrape(browser) {
+  const result = { dates: {} };
+
+  // 部屋・プラン一覧を取得（checkin < checkout が必須）
+  const checkin = jstDateStr(0);
+  const checkout = jstDateStr(1);
+  const roomTypesUrl = `${API_BASE}/hotels/${HOTEL_ID}/room_types?checkinDatetime=${checkin}+00%3A00%3A00&checkoutDatetime=${checkout}+00%3A00%3A00&roomTypeCategory=`;
+  const roomTypes = await fetchJson(roomTypesUrl);
+  const rooms = roomTypes.data || [];
+
+  if (rooms.length === 0) {
+    throw new Error('脈: 部屋一覧が空です（サイト構成変更の可能性）');
   }
 
-  // Cloud Run環境ではボット検出されるため、stealthプラグイン付きで独自ブラウザを起動
-  const isCloudRun = !!process.env.K_SERVICE;
-  const launchOptions = {
-    headless: 'new',
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
-  };
-  if (isCloudRun) {
-    launchOptions.executablePath = '/usr/bin/chromium';
+  // 表示対象日: 今日〜6日後（ナイトパックの翌日枠も拾うため取得は+7日後まで）
+  const startDate = jstDateStr(0);
+  const endDate = jstDateStr(7);
+  const displayDates = new Set([...Array(7)].map((_, i) => jstDateStr(i)));
+
+  let matchedRooms = 0;
+
+  for (const room of rooms) {
+    const config = ROOM_CONFIG.find(c => room.name && room.name.includes(c.matcher));
+    if (!config) {
+      console.log(`    → 脈: 未知の部屋「${room.name}」をスキップ（表示設定なし）`);
+      continue;
+    }
+    matchedRooms++;
+
+    const capacity = room.capacity?.maxNumberOfGuest || '?';
+
+    for (const plan of room.plans || []) {
+      const duration = planDuration(plan.name);
+      if (!duration) {
+        console.log(`    → 脈: プラン「${plan.name}」の時間表記を解析できずスキップ`);
+        continue;
+      }
+
+      const isNight = duration === 'night';
+      const price = isNight ? config.nightPrice : config.dayPrice;
+      const displayName = `${config.displayRoom}（${duration}/定員${capacity}名）${price}`;
+
+      const times = await fetchJson(
+        `${API_BASE}/room_types/${room.id}/fixed_plans/${plan.id}/available_times?startDate=${startDate}&endDate=${endDate}`
+      );
+
+      for (const frame of times) {
+        if (!frame.isAvailable) continue;
+
+        const start = toJst(frame.startDateTime);
+        const end = toJst(frame.endDateTime);
+
+        let dateStr;
+        let timeStr;
+        if (isNight) {
+          // ナイトパック（JST深夜開始）は入店する夜＝前日に載せ、実際の日付を先頭に付与
+          const prev = new Date(new Date(start.dateStr).getTime() - 24 * 60 * 60 * 1000);
+          dateStr = `${prev.getUTCFullYear()}-${String(prev.getUTCMonth() + 1).padStart(2, '0')}-${String(prev.getUTCDate()).padStart(2, '0')}`;
+          timeStr = `${start.month}/${start.day} ${start.time}〜${end.time}`;
+        } else {
+          dateStr = start.dateStr;
+          timeStr = `${start.time}〜${end.time}`;
+        }
+
+        if (!displayDates.has(dateStr)) continue;
+
+        if (!result.dates[dateStr]) result.dates[dateStr] = {};
+        if (!result.dates[dateStr][displayName]) result.dates[dateStr][displayName] = [];
+        if (!result.dates[dateStr][displayName].includes(timeStr)) {
+          result.dates[dateStr][displayName].push(timeStr);
+        }
+      }
+    }
   }
 
-  const browser = await puppeteerExtra.launch(launchOptions);
-  const page = await browser.newPage();
-
-  // タイムゾーンを日本時間に設定（Cloud RunがUTCで動作するため必須）
-  await page.emulateTimezone('Asia/Tokyo');
-
-  // FlareSolverrから取得したUserAgentを使用
-  const userAgent = cfData?.userAgent || 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
-  await page.setUserAgent(userAgent);
-  await page.setViewport({ width: 1280, height: 900 });
-
-  // FlareSolverrから取得したCookieを設定
-  if (cfData?.cookies && cfData.cookies.length > 0) {
-    const puppeteerCookies = cfData.cookies.map(cookie => ({
-      name: cookie.name,
-      value: cookie.value,
-      domain: cookie.domain || '.spot-ly.jp',
-      path: cookie.path || '/',
-      expires: cookie.expiry || -1,
-      httpOnly: cookie.httpOnly || false,
-      secure: cookie.secure || false,
-      sameSite: cookie.sameSite || 'Lax'
-    }));
-    await page.setCookie(...puppeteerCookies);
-    console.log(`    → 脈: Cookieを設定 (${puppeteerCookies.length}個)`);
+  if (matchedRooms === 0) {
+    throw new Error('脈: 表示設定に一致する部屋がありません（部屋名変更の可能性）');
   }
 
-  // ボット検知回避スクリプト
-  await page.evaluateOnNewDocument(() => {
-    Object.defineProperty(navigator, 'webdriver', { get: () => false });
-    Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
-    Object.defineProperty(navigator, 'languages', { get: () => ['ja-JP', 'ja', 'en-US', 'en'] });
-    window.chrome = { runtime: {} };
-  });
-
-  await page.setExtraHTTPHeaders({
-    'Accept-Language': 'ja,en-US;q=0.9,en;q=0.8',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'
-  });
-
-  try {
-    const result = { dates: {} };
-    const today = new Date();
-
-    // 7日分の日付を生成
-    const targetDates = [];
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + i);
-      targetDates.push(formatLocalDate(date));
+  // 結果のログ出力
+  const dateCount = Object.keys(result.dates).length;
+  let totalSlots = 0;
+  for (const dateData of Object.values(result.dates)) {
+    for (const slots of Object.values(dateData)) {
+      totalSlots += slots.length;
     }
-
-    console.log(`    → 脈: ${targetDates.length}日分をスクレイピング [${targetDates[0]} 〜 ${targetDates[6]}]`);
-
-    // 日付パラメータなしでアクセス（パラメータ付きだと「空室が見つかりませんでした」と表示される）
-    const directUrl = BASE_URL;
-
-    await page.goto(directUrl, { waitUntil: 'networkidle2', timeout: 30000 });
-    await new Promise(r => setTimeout(r, 2000));
-
-    // ページの読み込み確認（ログ強化: 失敗時の状態を把握）
-    const pageTitle = await page.title();
-    console.log(`    → 脈: ページタイトル = "${pageTitle}"`);
-
-    // ページ内容の先頭部分をログ出力（デバッグ用）
-    const bodyPreview = await page.evaluate(() => {
-      const text = document.body?.innerText || '';
-      return text.substring(0, 200).replace(/\n/g, ' ');
-    });
-    console.log(`    → 脈: ページ内容プレビュー = "${bodyPreview.substring(0, 100)}..."`);
-
-    // Cloudflare/ボット検出ページの検出
-    if (pageTitle.includes('Just a moment') || pageTitle === '' || bodyPreview.includes('Checking your browser')) {
-      console.log('    → 脈: ボット検出ページ検出 - 要調査');
-      return { dates: {} };
-    }
-
-    // react-select要素（人数ドロップダウン）が表示されるまで待機
-    try {
-      await page.waitForFunction(() => {
-        return document.querySelectorAll('[class*="-control"]').length > 0;
-      }, { timeout: 10000 });
-      console.log('    → 脈: react-select要素を検出');
-    } catch (e) {
-      console.log('    → 脈: react-select要素が見つからない（タイムアウト）');
-      // フォールバック: プランカードが表示されているか確認
-      try {
-        await page.waitForSelector('button.bg-black', { timeout: 3000 });
-      } catch (e2) {
-        console.log('    → 脈: プランカードも表示されない');
-        return { dates: {} };
-      }
-    }
-
-    // 各プランを処理
-    for (const plan of PLANS) {
-      // タイムアウトチェック
-      if (isTimedOut()) {
-        console.log('    → 脈: タイムアウトのため残りプランをスキップ');
-        break;
-      }
-
-      console.log(`    → 脈: ${plan.name} を処理中...`);
-
-      try {
-        // 最初の2つのボタンはヘッダー部分なので、pageIndex + 2が実際のプランボタンのインデックス
-        const buttonIndex = plan.pageIndex + 2;
-
-        // 1. 人数ドロップダウンで「1名」を選択
-        // react-selectのcontrol要素にmousedownイベントを発火するとドロップダウンが開く
-        // 各プランに大人・子供の2つのドロップダウンがあり、planIdx * 2が大人用のインデックス
-        const controlIndex = plan.pageIndex * 2;
-
-        const dropdownOpened = await page.evaluate((idx) => {
-          const controls = document.querySelectorAll('[class*="-control"]');
-          if (!controls[idx]) return false;
-          controls[idx].dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-          return true;
-        }, controlIndex);
-
-        if (!dropdownOpened) {
-          console.log(`    → 脈: ${plan.name} - ドロップダウンが見つからない (controlIndex: ${controlIndex})`);
-          continue;
-        }
-        await new Promise(r => setTimeout(r, 500));
-
-        // オプションが表示されるのを待機
-        try {
-          await page.waitForFunction(() => {
-            return document.querySelectorAll('[class*="-option"]').length > 0;
-          }, { timeout: 3000 });
-        } catch (e) {
-          console.log(`    → 脈: ${plan.name} - オプションが表示されない`);
-          await page.keyboard.press('Escape');
-          await new Promise(r => setTimeout(r, 300));
-          continue;
-        }
-
-        // 1名オプションをクリック（デバッグログ強化）
-        const optionInfo = await page.evaluate(() => {
-          const options = document.querySelectorAll('[class*="-option"]');
-          const optionTexts = Array.from(options).map(o => o.textContent.trim());
-          let clicked = false;
-          for (const opt of options) {
-            if (opt.textContent.trim() === '1名') {
-              opt.click();
-              clicked = true;
-              break;
-            }
-          }
-          return { clicked, count: options.length, texts: optionTexts };
-        });
-
-        console.log(`    → 脈: ${plan.name} - オプション検出: ${optionInfo.count}個 [${optionInfo.texts.join(', ')}]`);
-
-        if (!optionInfo.clicked) {
-          console.log(`    → 脈: ${plan.name} - 1名オプションが見つからない`);
-          await page.keyboard.press('Escape');
-          await new Promise(r => setTimeout(r, 300));
-          continue;
-        }
-        await new Promise(r => setTimeout(r, 500));
-
-        // 2. 予約するボタンをクリック（デバッグログ強化）
-        const reserveButtons = await page.$$('button.bg-black');
-        console.log(`    → 脈: ${plan.name} - bg-blackボタン数: ${reserveButtons.length}, 目標インデックス: ${buttonIndex}`);
-
-        if (!reserveButtons[buttonIndex]) {
-          console.log(`    → 脈: ${plan.name} - 予約ボタンが見つからない`);
-          continue;
-        }
-
-        const buttonState = await reserveButtons[buttonIndex].evaluate(btn => ({
-          disabled: btn.disabled,
-          text: btn.textContent.trim(),
-          classes: btn.className
-        }));
-        console.log(`    → 脈: ${plan.name} - ボタン状態: disabled=${buttonState.disabled}, text="${buttonState.text.substring(0, 20)}"`);
-
-        if (buttonState.disabled) {
-          console.log(`    → 脈: ${plan.name} - 予約ボタンが無効`);
-          continue;
-        }
-
-        await reserveButtons[buttonIndex].click();
-        await new Promise(r => setTimeout(r, 3000));
-
-        // 3. モーダルが開いて時間帯ボタンが表示されるまで待機
-        try {
-          await page.waitForFunction(() => {
-            const buttons = document.querySelectorAll('button');
-            return Array.from(buttons).some(b => /\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}/.test(b.textContent));
-          }, { timeout: 10000 });
-        } catch (waitError) {
-          console.log(`    → 脈: ${plan.name} - モーダル待機タイムアウト`);
-          await page.keyboard.press('Escape');
-          await new Promise(r => setTimeout(r, 500));
-          continue;
-        }
-
-        // 4. モーダル内の時間帯ボタンを取得
-        // ボタンのtextContentから「HH:MM - HH:MM」形式をシンプルに抽出
-        const modalSlots = await page.evaluate(() => {
-          const allButtons = document.querySelectorAll('button');
-          const slots = [];
-
-          allButtons.forEach(btn => {
-            const text = btn.textContent.trim().replace(/\s+/g, '');
-            // パターン: "11:30-13:00"（[0-9]を使用 - \dが動作しない環境対策）
-            const match = text.match(/([0-9]{1,2}:[0-9]{2})-([0-9]{1,2}:[0-9]{2})/);
-            if (match) {
-              slots.push({
-                time: `${match[1]}〜${match[2]}`,
-                disabled: btn.disabled
-              });
-            }
-          });
-
-          return slots;
-        });
-
-        console.log(`    → 脈: ${plan.name} - 取得セル数=${modalSlots.length}`);
-
-        if (modalSlots.length > 0) {
-          // 7日分のカレンダーからtimeSlotCountを動的に計算
-          const dateCount = 7;
-          const timeSlotCount = Math.floor(modalSlots.length / dateCount);
-
-          console.log(`    → 脈: ${plan.name} - ${dateCount}日 × ${timeSlotCount}時間帯 = ${dateCount * timeSlotCount}セル (実際: ${modalSlots.length}セル)`);
-
-          // テーブル構造: DOMは列優先（column-major）で配置
-          // スロットの順序: (1日目時間帯1〜5), (2日目時間帯1〜5), ...
-          // 1日分の全時間帯が連続して並んでいる
-          for (let dayIndex = 0; dayIndex < dateCount && dayIndex < targetDates.length; dayIndex++) {
-            const dateStr = targetDates[dayIndex];
-
-            // この日付のスロットを取得（列優先: dayIndex * timeSlotCount + timeIndex）
-            const daySlots = [];
-            for (let timeIndex = 0; timeIndex < timeSlotCount; timeIndex++) {
-              const slotIndex = dayIndex * timeSlotCount + timeIndex;
-              if (modalSlots[slotIndex]) {
-                daySlots.push(modalSlots[slotIndex]);
-              }
-            }
-
-            const availableSlots = daySlots.filter(s => !s.disabled);
-
-            if (availableSlots.length > 0) {
-              if (!result.dates[dateStr]) {
-                result.dates[dateStr] = {};
-              }
-              if (!result.dates[dateStr][plan.name]) {
-                result.dates[dateStr][plan.name] = [];
-              }
-
-              availableSlots.forEach(slot => {
-                let timeStr = slot.time;
-                // ナイトパックの場合は翌日の日付を先頭に付与
-                if (plan.isNight) {
-                  const nextDay = new Date(dateStr);
-                  nextDay.setDate(nextDay.getDate() + 1);
-                  const nextMonth = nextDay.getMonth() + 1;
-                  const nextDayNum = nextDay.getDate();
-                  timeStr = `${nextMonth}/${nextDayNum} ${slot.time}`;
-                }
-                if (!result.dates[dateStr][plan.name].includes(timeStr)) {
-                  result.dates[dateStr][plan.name].push(timeStr);
-                }
-              });
-            }
-          }
-        }
-
-        // モーダルを閉じる
-        await page.keyboard.press('Escape');
-        await new Promise(r => setTimeout(r, 500));
-
-        // 次のプランに備える（タイムアウトチェック後）
-        if (plan.pageIndex < PLANS.length - 1) {
-          if (isTimedOut()) {
-            console.log('    → 脈: タイムアウトのため次のプラン処理をスキップ');
-            break;
-          }
-
-          // ページをリロードして次のプランに備える
-          // リロードしないとドロップダウンの状態が残り、次のプランで問題が起きる
-          await page.goto(directUrl, { waitUntil: 'networkidle2', timeout: 30000 });
-          await new Promise(r => setTimeout(r, 2000));
-          // プランカードが表示されるまで待機
-          await page.waitForSelector('[class*="-control"]', { timeout: 10000 }).catch(() => {});
-        }
-
-      } catch (e) {
-        console.log(`    → 脈: ${plan.name} - エラー: ${e.message}`);
-      }
-    }
-
-    // 結果のログ出力
-    const dateCount = Object.keys(result.dates).length;
-    let totalSlots = 0;
-    for (const dateData of Object.values(result.dates)) {
-      for (const slots of Object.values(dateData)) {
-        totalSlots += slots.length;
-      }
-    }
-    console.log(`    → 脈: ${dateCount}日分のデータ取得, ${totalSlots}枠`);
-
-    return result;
-
-  } finally {
-    await page.close();
-    await browser.close();
   }
+  console.log(`    → 脈: ${dateCount}日分のデータ取得, ${totalSlots}枠`);
+
+  return result;
 }
 
 module.exports = { scrape };
