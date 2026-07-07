@@ -42,8 +42,10 @@ steps:
       - '2'
       - '--timeout'
       - '900'
+      # PUPPETEER_SKIP_CHROMIUM_DOWNLOAD/EXECUTABLE_PATH は削除
+      # → Puppeteer管理下のChromiumを使う方針に変更（DebianのchromiumパッケージとPuppeteerのバージョン不整合による起動失敗対策）
       - '--set-env-vars'
-      - 'PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true,PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium,FLARESOLVERR_URL=https://flaresolverr-526007709848.asia-northeast1.run.app/v1,CLOUD_RUN=true,GCS_BUCKET=private-sauna-data'
+      - 'FLARESOLVERR_URL=https://flaresolverr-526007709848.asia-northeast1.run.app/v1,CLOUD_RUN=true,GCS_BUCKET=private-sauna-data'
       - '--min-instances'
       - '0'
       - '--max-instances'
