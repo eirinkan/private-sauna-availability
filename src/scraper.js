@@ -304,16 +304,16 @@ async function getAvailability(date) {
     facilities: []
   };
 
-  // 各施設のデータを整形（KUDOCHIを一番上に）
+  // 各施設のデータを整形（SAKURADO→BASE→他→KUDOCHIの順）
   const facilityInfo = [
-    { key: 'kudochi', name: 'KUDOCHI福岡中洲', url: 'https://kudochi-sauna.hacomono.jp/reserve/schedule/6/25', hpUrl: 'https://kudochi-sauna.com/fukuoka/', mapUrl: 'https://www.google.com/maps/search/?api=1&query=KUDOCHI+福岡中洲' },
     { key: 'sakurado', name: 'SAUNA SAKURADO', url: 'https://sauna-sakurado.spa/reservation/', hpUrl: 'https://sauna-sakurado.spa/', mapUrl: 'https://www.google.com/maps/search/?api=1&query=SAUNA+SAKURADO+福岡' },
+    { key: 'base', name: 'BASE Private sauna', url: 'https://coubic.com/base-private-sauna/3957380/book/course_type', hpUrl: 'https://base-sauna.jp/', mapUrl: 'https://www.google.com/maps/search/?api=1&query=BASE+Private+sauna+福岡' },
     { key: 'giraffeMiamitenjin', name: 'GIRAFFE 南天神', url: 'https://reserva.be/giraffe_minamitenjin', hpUrl: 'https://sauna-giraffe.com/minami/', mapUrl: 'https://maps.app.goo.gl/jzrDoYaTVege5srB6' },
     { key: 'giraffeTenjin', name: 'GIRAFFE 天神', url: 'https://reserva.be/giraffe_minamitenjin', hpUrl: 'https://sauna-giraffe.com/tenjin/', mapUrl: 'https://maps.app.goo.gl/nAnPLjANSzuPVeLZA' },
     { key: 'saunaOoo', name: 'SAUNA OOO FUKUOKA', url: 'https://sw.gflow.cloud/ooo-fukuoka/calendar_open', hpUrl: 'https://ooo-sauna.com/fukuoka.html', mapUrl: 'https://www.google.com/maps/search/?api=1&query=SAUNA+OOO+FUKUOKA' },
-    { key: 'base', name: 'BASE Private sauna', url: 'https://coubic.com/base-private-sauna/3957380/book/course_type', hpUrl: 'https://base-sauna.jp/', mapUrl: 'https://www.google.com/maps/search/?api=1&query=BASE+Private+sauna+福岡' },
     { key: 'myaku', name: '脈 MYAKU', url: 'https://spot-ly.jp/ja/hotels/176', hpUrl: 'https://www.myaku-sauna.com/', mapUrl: 'https://www.google.com/maps/search/?api=1&query=脈+MYAKU+サウナ+天神', kyuStayUrl: 'https://hotel.travel.rakuten.co.jp/hotelinfo/plan/?f_no=191639&f_flg=PLAN' },
-    { key: 'yogan', name: 'サウナヨーガン福岡天神', url: 'https://reserva.be/saunayogan/reserve?mode=service_staff&search_evt_no=eeeJyzMDY2MQIAAxwBBQ', hpUrl: 'https://yogan-sauna-fukuoka-tenjin.jp/', mapUrl: 'https://www.google.com/maps/search/?api=1&query=サウナヨーガン+福岡天神' }
+    { key: 'yogan', name: 'サウナヨーガン福岡天神', url: 'https://reserva.be/saunayogan/reserve?mode=service_staff&search_evt_no=eeeJyzMDY2MQIAAxwBBQ', hpUrl: 'https://yogan-sauna-fukuoka-tenjin.jp/', mapUrl: 'https://www.google.com/maps/search/?api=1&query=サウナヨーガン+福岡天神' },
+    { key: 'kudochi', name: 'KUDOCHI福岡中洲', url: 'https://kudochi-sauna.hacomono.jp/reserve/schedule/6/25', hpUrl: 'https://kudochi-sauna.com/fukuoka/', mapUrl: 'https://www.google.com/maps/search/?api=1&query=KUDOCHI+福岡中洲' }
   ];
 
   for (const info of facilityInfo) {
