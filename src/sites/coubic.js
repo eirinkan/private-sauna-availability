@@ -1,28 +1,49 @@
 /**
- * BASE Private sauna (Coubic) スクレイパー
- * URL: https://coubic.com/base-private-sauna/3957380/book
+ * BASE Private sauna (STORES予約 / 旧Coubic) スクレイパー
+ * 予約ページ: https://fukuoka-yakuin.stores.jp/reserve/base-private-sauna/3957380/book
+ * （旧URL https://coubic.com/base-private-sauna/3957380/book はリダイレクトされる）
  *
- * 構造:
- * - メニュー選択 → コース選択 → 完了ボタンで日時選択画面が表示
- * - 空き枠はラジオボタンのvalue属性にISOタイムスタンプとして格納
- *   例: "2026-01-05T01:00:00.000Z" = 2026-01-05 10:00 JST
- * - ラジオボタンが存在する = 空きあり、存在しない = 空きなし
- * - 平日プランと土日プランを両方スクレイピングして統合
+ * 方式: 予約ページが内部で使う空き状況API（JSON）を直接呼ぶ
+ * - 旧方式（Puppeteerでボタンクリック→画面遷移）は本番環境で読み込みタイミングにより
+ *   間欠的に失敗していたため、2026-07-07にAPI直接方式へ全面変更
+ * - ブラウザ不要・認証不要（User-AgentとAccept: application/jsonのみ必要）
+ *
+ * APIの構造:
+ * 1. コース一覧: /courses → nameで検索し canonical_id を得る
+ *    ※ board_datesで使うIDは「id」ではなく「canonical_id」（idを使うと404）
+ * 2. 空き状況: /courses/{canonical_id}/availability/board_dates
+ *    → selected_date省略で今日から7日分（JST）を返す
+ *    → dates[].availabilities[] の is_available で空き判定
+ * - 平日プランは土日祝で全枠false、土日プランは平日で全枠falseになるため、
+ *   両プランの結果を単純に統合すれば祝日判定はAPI側に任せられる
  */
 
-const { isHoliday } = require('../utils/holidays');
+const API_BASE = 'https://fukuoka-yakuin.stores.jp/reserve/api/reservation_flow/merchants/base-private-sauna/course_scheme/resources/3957380';
 
-const BOOKING_URL = 'https://coubic.com/base-private-sauna/3957380/book';
+// 取得対象プラン（コース一覧のnameと完全一致）
+const TARGET_PLANS = ['120分1名様(平日)', '120分1名様(土曜・日曜・祭日)'];
 
 // コース種別（表示用）- 統一フォーマット：部屋名（時間/定員）価格
 const COURSE_NAMES = ['BASE（120分/定員2名）¥6,500-10,800'];
 
-// 日付が平日かどうか判定（土日・祝日を除く）
-function isWeekdayDate(dateStr) {
-  if (isHoliday(dateStr)) return false;
-  const date = new Date(dateStr);
-  const day = date.getDay();
-  return day >= 1 && day <= 5; // 月〜金
+const FETCH_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Accept': 'application/json',
+  'Accept-Language': 'ja'
+};
+
+// JSONを取得（エラー時はthrowしてヘルスチェックで検知できるようにする）
+async function fetchJson(url) {
+  const res = await fetch(url, { headers: FETCH_HEADERS, signal: AbortSignal.timeout(30000) });
+  if (!res.ok) {
+    throw new Error(`BASE API エラー: ${res.status} ${url}`);
+  }
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.includes('json')) {
+    // Cloudflareチャレンジ等でHTMLが返ってきた場合を検知
+    throw new Error(`BASE API が JSON 以外を返却: ${contentType} ${url}`);
+  }
+  return res.json();
 }
 
 /**
@@ -74,216 +95,82 @@ function formatTimeSlots(slots) {
   return result;
 }
 
-// 1つのプランをスクレイピング
-async function scrapePlan(page, planName) {
-  // メニュー選択ボタンをクリック
-  let menuClicked = false;
-  const buttons = await page.$$('button');
-  for (const btn of buttons) {
-    const text = await page.evaluate(el => el.textContent, btn);
-    if (text && (text.includes('選択してください') || text.includes('変更'))) {
-      await btn.click();
-      menuClicked = true;
-      break;
+// 1プランの空き状況をAPIから取得 → { 'YYYY-MM-DD': ['HH:MM〜', ...] }
+async function fetchPlanAvailability(canonicalId) {
+  const data = await fetchJson(`${API_BASE}/courses/${canonicalId}/availability/board_dates`);
+  const slots = {};
+
+  for (const day of data.dates || []) {
+    // time_unit_start_at は "2026-07-07T10:00:00.000+09:00" 形式（JST付き）
+    const dateStr = day.time_unit_start_at.slice(0, 10);
+
+    for (const a of day.availabilities || []) {
+      if (!a.is_available) continue;
+      // start_at の "THH:MM" 部分をそのまま使う（JSTオフセット付きなので変換不要）
+      const timeStr = a.start_at.slice(11, 16) + '〜';
+
+      if (!slots[dateStr]) slots[dateStr] = [];
+      if (!slots[dateStr].includes(timeStr)) slots[dateStr].push(timeStr);
     }
   }
 
-  if (!menuClicked) {
-    await page.evaluate(() => {
-      const btns = document.querySelectorAll('button');
-      for (const btn of btns) {
-        const text = btn.textContent.trim();
-        if (text.includes('選択してください') || text.includes('変更')) {
-          btn.click();
-          return;
-        }
-      }
-    });
-  }
-
-  await new Promise(resolve => setTimeout(resolve, 3000));
-
-  // ダイアログが開くのを待機
-  try {
-    await page.waitForSelector('dialog, [role="dialog"]', { timeout: 8000 });
-  } catch (e) {
-    // 再試行
-    const retryButtons = await page.$$('button');
-    for (const btn of retryButtons) {
-      const text = await page.evaluate(el => el.textContent, btn);
-      if (text && text.includes('選択してください')) {
-        await btn.click();
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        break;
-      }
-    }
-  }
-  await new Promise(resolve => setTimeout(resolve, 1000));
-
-  // プラン選択
-  await page.evaluate((plan) => {
-    const radios = document.querySelectorAll('input[type="radio"]');
-    for (const radio of radios) {
-      const label = radio.closest('label');
-      if (label && label.textContent.includes(plan)) {
-        radio.click();
-        return;
-      }
-    }
-    const labels = document.querySelectorAll('label');
-    for (const label of labels) {
-      if (label.textContent.includes(plan)) {
-        const input = label.querySelector('input');
-        if (input) {
-          input.click();
-          return;
-        }
-        label.click();
-        return;
-      }
-    }
-  }, planName);
-  await new Promise(resolve => setTimeout(resolve, 1000));
-
-  // 完了ボタンをクリック
-  await page.evaluate(() => {
-    const buttons = document.querySelectorAll('button');
-    for (const btn of buttons) {
-      const text = btn.textContent.trim();
-      if (text === '完了' || text === '決定' || text === 'OK') {
-        btn.click();
-        return;
-      }
-    }
-  });
-
-  // カレンダー読み込み待機
-  try {
-    await page.waitForSelector('input[name="dateTimeSelection"]', { timeout: 15000 });
-  } catch (e) {
-    await page.evaluate(() => window.scrollBy(0, 300));
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    try {
-      await page.waitForSelector('input[name="dateTimeSelection"]', { timeout: 10000 });
-    } catch (e2) {
-      // タイムアウト
-    }
-  }
-  await new Promise(resolve => setTimeout(resolve, 3000));
-
-  // ラジオボタンから空き枠を抽出
-  const calendarData = await page.evaluate(() => {
-    const availableSlots = {};
-    const inputs = document.querySelectorAll('input');
-    inputs.forEach(function(input) {
-      const value = input.value;
-      if (!value || value.indexOf('T') === -1) return;
-
-      const datePart = value.split('T')[0];
-      const timePart = value.split('T')[1];
-      if (!datePart || !timePart) return;
-
-      const dateParts = datePart.split('-');
-      const timeParts = timePart.split(':');
-      if (dateParts.length < 3 || timeParts.length < 2) return;
-
-      const year = parseInt(dateParts[0]);
-      const month = parseInt(dateParts[1]);
-      const day = parseInt(dateParts[2]);
-      const utcHour = parseInt(timeParts[0]);
-      const utcMin = timeParts[1];
-
-      // UTC → JST変換（+9時間）
-      let jstHour = utcHour + 9;
-      let jstDay = day;
-      let jstMonth = month;
-      let jstYear = year;
-
-      if (jstHour >= 24) {
-        jstHour = jstHour - 24;
-        jstDay = jstDay + 1;
-        const daysInMonth = new Date(jstYear, jstMonth, 0).getDate();
-        if (jstDay > daysInMonth) {
-          jstDay = 1;
-          jstMonth = jstMonth + 1;
-          if (jstMonth > 12) {
-            jstMonth = 1;
-            jstYear = jstYear + 1;
-          }
-        }
-      }
-
-      const pad = function(n) { return n < 10 ? '0' + n : '' + n; };
-      const dateStr = jstYear + '-' + pad(jstMonth) + '-' + pad(jstDay);
-
-      const startHour = jstHour;
-      const startMin = parseInt(utcMin);
-
-      // 開始時間のみの表示「HH:MM〜」形式
-      const timeStr = pad(startHour) + ':' + pad(startMin) + '〜';
-
-      if (!availableSlots[dateStr]) {
-        availableSlots[dateStr] = [];
-      }
-      if (availableSlots[dateStr].indexOf(timeStr) === -1) {
-        availableSlots[dateStr].push(timeStr);
-      }
-    });
-    return availableSlots;
-  });
-
-  return calendarData;
+  return slots;
 }
 
+// browser引数は他スクレイパーとのインターフェース統一のため受け取るが使用しない
 async function scrape(browser) {
-  const page = await browser.newPage();
-  await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-  await page.setViewport({ width: 1280, height: 900 });
+  const result = { dates: {} };
 
-  try {
-    const result = { dates: {} };
+  // コース一覧からプラン名 → canonical_id を解決
+  const coursesData = await fetchJson(`${API_BASE}/courses`);
+  const courses = coursesData.courses || [];
 
-    // 平日プランをスクレイピング
-    console.log('    → BASE: 平日プランをスクレイピング中...');
-    await page.goto(BOOKING_URL, { waitUntil: 'networkidle2', timeout: 60000 });
-    await new Promise(resolve => setTimeout(resolve, 4000));
-    const weekdaySlots = await scrapePlan(page, '120分1名様(平日)');
+  const planIds = {};
+  for (const planName of TARGET_PLANS) {
+    const course = courses.find(c => c.name === planName);
+    if (!course) {
+      // プラン名変更を検知したら黙って空を返さずエラーにする
+      throw new Error(`BASE: プラン「${planName}」がコース一覧に見つかりません`);
+    }
+    planIds[planName] = course.canonical_id;
+  }
 
-    // 土日プランをスクレイピング
-    console.log('    → BASE: 土日プランをスクレイピング中...');
-    await page.goto(BOOKING_URL, { waitUntil: 'networkidle2', timeout: 60000 });
-    await new Promise(resolve => setTimeout(resolve, 4000));
-    const weekendSlots = await scrapePlan(page, '120分1名様(土曜・日曜・祭日)');
-
-    // 結果を統合（平日は平日プラン、土日は土日プランのデータを使用）
-    const allDates = new Set([...Object.keys(weekdaySlots), ...Object.keys(weekendSlots)]);
-
-    for (const dateStr of allDates) {
-      const slots = isWeekdayDate(dateStr) ? weekdaySlots[dateStr] : weekendSlots[dateStr];
-      if (slots && slots.length > 0) {
-        // 時間をソート
-        const sortedTimes = slots.sort((a, b) => {
-          const aParts = a.split(':');
-          const bParts = b.split(':');
-          return (parseInt(aParts[0]) * 60 + parseInt(aParts[1])) - (parseInt(bParts[0]) * 60 + parseInt(bParts[1]));
-        });
-
-        // 時間帯をグループ化して表示形式を整える
-        const formattedSlots = formatTimeSlots(sortedTimes);
-
-        result.dates[dateStr] = {};
-        for (const course of COURSE_NAMES) {
-          result.dates[dateStr][course] = formattedSlots;
-        }
+  // 各プランの空き状況を取得して統合
+  // （平日プランは土日祝が全枠埋まり扱い、土日プランは平日が全枠埋まり扱いなので単純統合でよい）
+  const merged = {};
+  for (const planName of TARGET_PLANS) {
+    console.log(`    → BASE: ${planName} をAPI取得中...`);
+    const planSlots = await fetchPlanAvailability(planIds[planName]);
+    for (const [dateStr, times] of Object.entries(planSlots)) {
+      if (!merged[dateStr]) merged[dateStr] = [];
+      for (const t of times) {
+        if (!merged[dateStr].includes(t)) merged[dateStr].push(t);
       }
     }
-
-    console.log(`    → BASE: 平日${Object.keys(weekdaySlots).length}日, 土日${Object.keys(weekendSlots).length}日 取得`);
-
-    return result;
-  } finally {
-    await page.close();
   }
+
+  for (const [dateStr, times] of Object.entries(merged)) {
+    if (times.length === 0) continue;
+
+    // 時間をソート
+    const sortedTimes = times.sort((a, b) => {
+      const aParts = a.split(':');
+      const bParts = b.split(':');
+      return (parseInt(aParts[0]) * 60 + parseInt(aParts[1])) - (parseInt(bParts[0]) * 60 + parseInt(bParts[1]));
+    });
+
+    // 時間帯をグループ化して表示形式を整える
+    const formattedSlots = formatTimeSlots(sortedTimes);
+
+    result.dates[dateStr] = {};
+    for (const course of COURSE_NAMES) {
+      result.dates[dateStr][course] = formattedSlots;
+    }
+  }
+
+  console.log(`    → BASE: ${Object.keys(result.dates).length}日分 取得`);
+
+  return result;
 }
 
 module.exports = { scrape };

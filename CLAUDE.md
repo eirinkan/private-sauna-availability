@@ -348,10 +348,16 @@ try {
 - カレンダーのDOM構造がシンプル
 - 空き判定: 要素の色やクラスで判定
 
-#### Coubic系 (`coubic.com`)
-- Cloudflare保護なし
-- 時間: ラジオボタンの`value`属性（ISO形式）
-- UTC→JST変換が必要（+9時間）
+#### STORES予約系（旧Coubic） (`xxx.stores.jp/reserve/`)
+- `coubic.com` のURLは `xxx.stores.jp/reserve/` にリダイレクトされる（2026年に移行）
+- **ブラウザ不要**: 予約ページが内部で使うJSON APIを直接呼ぶ（BASEで2026-07-07に実証）
+  - コース一覧: `/reserve/api/reservation_flow/merchants/{merchant}/course_scheme/resources/{id}/courses`
+  - 空き状況: `.../courses/{canonical_id}/availability/board_dates`（selected_date省略で今日から7日分）
+- **重要**: board_datesのIDはコース一覧の `id` ではなく `canonical_id`（`id`だと404）
+- 必要ヘッダーは `User-Agent` と `Accept: application/json` のみ（Cookie・認証不要）
+- 空き判定: `dates[].availabilities[].is_available`（時刻はJSTオフセット付きで返る＝変換不要）
+- 祝日判定はAPI側に任せる（平日プランは土日祝が全枠false、逆も同様→両プラン統合でよい）
+- 旧方式（Puppeteerでボタンクリック→画面遷移）は本番で間欠失敗したため使用禁止
 
 #### gflow系 (`sw.gflow.cloud`)
 - Vue.jsベースのリアクティブUI
