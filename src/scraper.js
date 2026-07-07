@@ -96,7 +96,8 @@ async function saveData(data) {
 async function launchBrowser() {
   console.log('Environment:', isCloudRun ? 'Cloud Run' : 'Local');
 
-  // Cloud Run用にexecutablePathを明示的に設定
+  // Puppeteer管理下の同梱Chromiumを使う（executablePathは指定しない）
+  // → apt側chromiumのバージョン更新でPuppeteerと不整合になる問題を回避
   const launchOptions = {
     headless: 'new',
     args: [
@@ -108,12 +109,6 @@ async function launchBrowser() {
       '--window-size=1280,900'
     ]
   };
-
-  // Cloud Run環境ではPUPPETEER_EXECUTABLE_PATHを使用
-  if (process.env.PUPPETEER_EXECUTABLE_PATH) {
-    launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
-    console.log('Using executablePath:', launchOptions.executablePath);
-  }
 
   console.log('Launching browser...');
 

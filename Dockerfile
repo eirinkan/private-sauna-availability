@@ -1,29 +1,32 @@
 FROM node:20-slim
 
-# Puppeteer用の依存関係をインストール
+# Puppeteer実行に必要な追加パッケージ（フォント・DBUS）
+# Chromium本体とその実行時依存は npx puppeteer browsers install chrome --install-deps で入る
 RUN apt-get update && apt-get install -y \
-    chromium \
+    ca-certificates \
     fonts-ipafont-gothic \
     fonts-wqy-zenhei \
     fonts-thai-tlwg \
-    fonts-kacst \
     fonts-freefont-ttf \
+    dbus \
+    dbus-x11 \
+    wget \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
-# Puppeteerの設定（Chromiumのダウンロードをスキップ、システムのChromiumを使用）
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
-
-# Playwrightの設定（システムのChromiumを使用）
-ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
-ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium
-
 WORKDIR /app
 
-# 依存関係をインストール
+# Puppeteer管理下のChromiumを使う（Debianのchromiumパッケージには依存しない）
+# → apt側の chromium 更新でPuppeteerとバージョン不整合が起きる問題を構造的に回避
+ENV PUPPETEER_CACHE_DIR=/app/.cache/puppeteer
+
+# 依存関係をインストール（npm ciでpuppeteerが同梱Chromiumも一緒にダウンロードする）
 COPY package*.json ./
 RUN npm ci --only=production
+
+# Puppeteerが要求するChromium実行時ライブラリを追加インストール
+# （公式Docker guideの推奨手順）
+RUN npx puppeteer browsers install chrome --install-deps
 
 # アプリケーションをコピー
 COPY . .
