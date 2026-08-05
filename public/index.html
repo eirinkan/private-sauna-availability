@@ -936,24 +936,83 @@
       return null;
     }
 
-    // 選択日が週末かどうか
-    // ※祝日は未対応（祝日も土日料金の施設が多いため、祝日は実際より安く表示される）
-    function isSelectedDateWeekend() {
-      // YYYY-MM-DD形式をローカル時間で解析（タイムゾーン問題を回避）
+    // 日本の祝日判定（1980〜2099年に対応）
+    // 各施設の料金は「平日 / 土日祝」で分かれるため、祝日を土日と同じ扱いにする必要がある
+    // 内閣府の祝日データを使わず計算で判定する（外部通信なし・年をまたいでも自動追従）
+    function isPublicHolidayCore(date) {
+      const y = date.getFullYear();
+      const m = date.getMonth() + 1;
+      const d = date.getDate();
+
+      // その月の第n月曜日（ハッピーマンデー用）
+      const nthMonday = (n) => {
+        const firstDay = new Date(y, m - 1, 1).getDay();
+        return 1 + ((1 - firstDay + 7) % 7) + 7 * (n - 1);
+      };
+      // 春分の日・秋分の日（1980〜2099年の近似式）
+      const shunbun = Math.floor(20.8431 + 0.242194 * (y - 1980) - Math.floor((y - 1980) / 4));
+      const shubun = Math.floor(23.2488 + 0.242194 * (y - 1980) - Math.floor((y - 1980) / 4));
+
+      switch (m) {
+        case 1: return d === 1 || d === nthMonday(2);              // 元日 / 成人の日
+        case 2: return d === 11 || d === 23;                        // 建国記念の日 / 天皇誕生日
+        case 3: return d === shunbun;                               // 春分の日
+        case 4: return d === 29;                                    // 昭和の日
+        case 5: return d === 3 || d === 4 || d === 5;               // 憲法記念日 / みどりの日 / こどもの日
+        case 7: return d === nthMonday(3);                          // 海の日
+        case 8: return d === 11;                                    // 山の日
+        case 9: return d === nthMonday(3) || d === shubun;          // 敬老の日 / 秋分の日
+        case 10: return d === nthMonday(2);                         // スポーツの日
+        case 11: return d === 3 || d === 23;                        // 文化の日 / 勤労感謝の日
+        default: return false;
+      }
+    }
+
+    // 振替休日（祝日が日曜のとき、その後の最初の平日が休日になる）
+    function isSubstituteHoliday(date) {
+      if (isPublicHolidayCore(date)) return false;
+      const cur = new Date(date);
+      cur.setDate(cur.getDate() - 1);
+      while (isPublicHolidayCore(cur)) {
+        if (cur.getDay() === 0) return true;
+        cur.setDate(cur.getDate() - 1);
+      }
+      return false;
+    }
+
+    // 国民の休日（前後を祝日に挟まれた平日。敬老の日と秋分の日の間など）
+    function isNationalHoliday(date) {
+      if (isPublicHolidayCore(date) || date.getDay() === 0) return false;
+      const prev = new Date(date);
+      prev.setDate(prev.getDate() - 1);
+      const next = new Date(date);
+      next.setDate(next.getDate() + 1);
+      return isPublicHolidayCore(prev) && isPublicHolidayCore(next);
+    }
+
+    function isHoliday(date) {
+      return isPublicHolidayCore(date) || isSubstituteHoliday(date) || isNationalHoliday(date);
+    }
+
+    // 選択日をローカル時間のDateに変換（タイムゾーン問題を回避）
+    function getSelectedDate() {
       const parts = dateSelect.value.split('-');
-      const date = new Date(parts[0], parts[1] - 1, parts[2]);
+      return new Date(parts[0], parts[1] - 1, parts[2]);
+    }
+
+    // 選択日が土日祝かどうか（各施設の「土日祝」料金の判定に使う）
+    function isSelectedDateWeekend() {
+      const date = getSelectedDate();
       const day = date.getDay();
-      return day === 0 || day === 6; // 日曜=0, 土曜=6
+      return day === 0 || day === 6 || isHoliday(date); // 日曜=0, 土曜=6, または祝日
     }
 
     // 選択日がナイトパックの上位料金日（金土日祝）かどうか
-    // GIRAFFE天神のナイトパックは月火水木と金土日祝で料金が分かれる
-    // ※祝日は未対応（isSelectedDateWeekendと同じ制約）
+    // GIRAFFE天神のナイトパックは月火水木と金土日祝で料金が分かれる（120分の土日祝とは区分が違う）
     function isSelectedDateNightPeak() {
-      const parts = dateSelect.value.split('-');
-      const date = new Date(parts[0], parts[1] - 1, parts[2]);
+      const date = getSelectedDate();
       const day = date.getDay();
-      return day === 5 || day === 6 || day === 0; // 金=5, 土=6, 日=0
+      return day === 5 || day === 6 || day === 0 || isHoliday(date); // 金=5, 土=6, 日=0, または祝日
     }
 
     // 施設キーを取得
