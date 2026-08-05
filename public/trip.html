@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="福岡・天神から車2時間以内の貸切サウナ19軒。空間の作り込みとサウナ室の中身で選定、移動時間は全件実測。">
+  <meta property="og:title" content="遠出して行く貸切サウナ｜天神から2時間圏">
+  <meta property="og:description" content="福岡・天神から車2時間以内の貸切サウナ19軒。空間の作り込みとサウナ室の中身で選定、移動時間は全件実測。">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://private-sauna-availability-526007709848.asia-northeast1.run.app/trip">
+  <meta property="og:image" content="https://private-sauna-availability-526007709848.asia-northeast1.run.app/og-image.png">
+  <meta property="og:locale" content="ja_JP">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="遠出して行く貸切サウナ｜天神から2時間圏">
+  <meta name="twitter:description" content="福岡・天神から車2時間以内の貸切サウナ19軒。空間の作り込みとサウナ室の中身で選定。">
+  <meta name="twitter:image" content="https://private-sauna-availability-526007709848.asia-northeast1.run.app/og-image.png">
+  <meta name="color-scheme" content="light">
+  <title>遠出して行く貸切サウナ｜天神から2時間圏</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-primary: #faf6f1;
+      --bg-secondary: #fff9f4;
+      --bg-card: #ffffff;
+      --accent: #c45c26;
+      --accent-glow: rgba(196, 92, 38, 0.15);
+      --text-primary: #3d2914;
+      --text-secondary: #6b5344;
+      --text-muted: #9a8577;
+      --border: #e8ddd3;
+      --success: #b87333;
+      --success-bg: rgba(184, 115, 51, 0.12);
+      --water: #2f6f78;
+      --water-bg: rgba(47, 111, 120, 0.1);
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', 'Zen Kaku Gothic New', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.75;
+      padding-bottom: 40px;
+    }
+
+    /* ---------- header（空き状況ページと同じ作り） ---------- */
+    header {
+      background: var(--bg-secondary);
+      padding: 10px 12px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .header-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    header h1 { font-size: 0.85rem; font-weight: 600; white-space: nowrap; }
+    .header-right { display: flex; align-items: center; gap: 10px; }
+
+    .back-link {
+      font-size: 0.7rem;
+      color: var(--accent);
+      text-decoration: none;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      padding: 4px 10px;
+      border-radius: 6px;
+      white-space: nowrap;
+      font-weight: 600;
+    }
+    .back-link:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    .region-label {
+      background: linear-gradient(135deg, #ff6b35, #ff8f60);
+      color: white;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+
+    /* ---------- layout ---------- */
+    .wrap {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 28px 16px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 36px;
+    }
+
+    /* ---------- intro ---------- */
+    .intro { display: flex; flex-direction: column; gap: 14px; }
+
+    .intro h2 {
+      font-size: 1.7rem;
+      font-weight: 700;
+      line-height: 1.4;
+      text-wrap: balance;
+    }
+
+    .intro p { color: var(--text-secondary); font-size: 0.95rem; max-width: 44em; }
+    .intro p strong { color: var(--text-primary); font-weight: 700; }
+
+    .tally {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 4px;
+    }
+    .tally div {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 14px;
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+    .tally dt { font-size: 0.7rem; color: var(--text-muted); }
+    .tally dd { font-size: 1.15rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .tally dd small { font-size: 0.7rem; font-weight: 400; color: var(--text-muted); margin-left: 2px; }
+
+    /* ---------- legend ---------- */
+    .legend {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .legend h3 { font-size: 0.95rem; font-weight: 700; }
+    .legend ul { list-style: none; display: flex; flex-direction: column; gap: 7px; }
+    .legend li {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      padding-left: 15px;
+      position: relative;
+    }
+    .legend li::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0.72em;
+      width: 7px; height: 2px;
+      background: var(--accent);
+      border-radius: 1px;
+    }
+    .legend li b { color: var(--text-primary); font-weight: 700; }
+
+    /* ---------- band ---------- */
+    .band { display: flex; flex-direction: column; }
+
+    .band-head {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--accent);
+      margin-bottom: 4px;
+    }
+    .band-range {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--accent);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .band-name { font-size: 1.2rem; font-weight: 700; }
+    .band-count { margin-left: auto; font-size: 0.75rem; color: var(--text-muted); }
+
+    /* ---------- facility ---------- */
+    .fac {
+      display: grid;
+      grid-template-columns: 76px 1fr;
+      gap: 0 18px;
+      padding: 20px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .fac-time { display: flex; flex-direction: column; align-items: flex-start; padding-top: 4px; }
+    .fac-time .num {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--accent);
+      line-height: 1.1;
+      font-variant-numeric: tabular-nums;
+    }
+    .fac-time .num.small { font-size: 1.05rem; }
+    .fac-time .unit { font-size: 0.68rem; color: var(--text-muted); }
+    .fac-time .est {
+      font-size: 0.62rem;
+      color: var(--text-muted);
+      border: 1px dashed var(--border);
+      border-radius: 4px;
+      padding: 0 5px;
+      margin-top: 5px;
+    }
+
+    .fac-main { display: flex; flex-direction: column; gap: 9px; min-width: 0; }
+
+    .fac h3 { font-size: 1.1rem; font-weight: 700; line-height: 1.45; text-wrap: balance; }
+    .fac .place {
+      display: block;
+      font-size: 0.72rem;
+      font-weight: 400;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .award {
+      display: inline-block;
+      background: var(--success-bg);
+      color: var(--success);
+      border: 1px solid rgba(184, 115, 51, 0.35);
+      border-radius: 4px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 1px 6px;
+      text-decoration: none;
+      vertical-align: 2px;
+      margin-left: 6px;
+      white-space: nowrap;
+    }
+    .award:hover { background: var(--success); color: #fff; }
+
+    .tracked {
+      display: inline-block;
+      background: var(--accent-glow);
+      color: var(--accent);
+      border: 1px solid rgba(196, 92, 38, 0.35);
+      border-radius: 4px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 1px 6px;
+      text-decoration: none;
+      vertical-align: 2px;
+      margin-left: 6px;
+      white-space: nowrap;
+    }
+    .tracked:hover { background: var(--accent); color: #fff; }
+
+    .scores { display: flex; gap: 18px; flex-wrap: wrap; align-items: center; }
+    .score { display: flex; align-items: center; gap: 6px; }
+    .score > span { font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; }
+    .dots { display: flex; gap: 3px; }
+    .dots i { width: 8px; height: 8px; border-radius: 2px; background: var(--border); display: block; }
+    .dots i.on { background: var(--accent); }
+    .score em { font-style: normal; font-size: 0.7rem; color: var(--text-muted); }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 5px; }
+    .chip {
+      font-size: 0.7rem;
+      line-height: 1.7;
+      padding: 1px 8px;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+    .chip.wood { border-color: rgba(196, 92, 38, 0.4); color: var(--accent); background: var(--accent-glow); font-weight: 600; }
+    .chip.water { border-color: rgba(47, 111, 120, 0.35); color: var(--water); background: var(--water-bg); }
+    .chip.unk { border-style: dashed; color: var(--text-muted); }
+
+    .why { font-size: 0.9rem; color: var(--text-secondary); }
+    .why strong { color: var(--text-primary); font-weight: 700; }
+
+    .price {
+      font-size: 0.85rem;
+      border-left: 3px solid var(--border);
+      padding-left: 10px;
+      font-variant-numeric: tabular-nums;
+    }
+    .price b { font-weight: 700; }
+
+    .caveat { font-size: 0.78rem; color: var(--text-muted); }
+    .caveat::before { content: '要確認 — '; color: var(--accent); font-weight: 700; }
+
+    .links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+    .links a {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      text-decoration: none;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      border-radius: 5px;
+      padding: 2px 9px;
+      white-space: nowrap;
+    }
+    .links a:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+    a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    /* ---------- dropped ---------- */
+    .dropped { display: flex; flex-direction: column; gap: 12px; }
+    .dropped h2 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--text-muted);
+    }
+    .drop-row {
+      display: grid;
+      grid-template-columns: 76px 1fr;
+      gap: 0 18px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .drop-row .t { font-size: 0.85rem; font-weight: 700; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+    .drop-row b { font-size: 0.95rem; font-weight: 700; }
+    .drop-row .pl { font-size: 0.72rem; color: var(--text-muted); }
+    .drop-row p { font-size: 0.85rem; color: var(--text-secondary); margin-top: 3px; }
+    .drop-row .links { margin-top: 6px; }
+
+    /* ---------- sources ---------- */
+    .sources {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .sources h3 { font-size: 0.95rem; font-weight: 700; }
+    .sources dl { display: flex; flex-direction: column; gap: 10px; }
+    .sources dt { font-size: 0.85rem; font-weight: 700; }
+    .sources dt a { color: var(--accent); text-decoration: none; }
+    .sources dt a:hover { text-decoration: underline; }
+    .sources dd { font-size: 0.8rem; color: var(--text-secondary); }
+
+    footer.note {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border);
+      padding-top: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    @media (max-width: 560px) {
+      .wrap { padding: 20px 12px 0; gap: 28px; }
+      .intro h2 { font-size: 1.35rem; }
+      .fac, .drop-row { grid-template-columns: 1fr; gap: 8px 0; }
+      .fac-time { flex-direction: row; align-items: baseline; gap: 5px; padding-top: 0; }
+      .fac-time .num { font-size: 1.25rem; }
+      .fac-time .est { margin-top: 0; }
+      .band-count { margin-left: 0; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-left">
+      <h1>遠出して行く貸切サウナ</h1>
+    </div>
+    <div class="header-right">
+      <a class="back-link" href="/">空き状況へ</a>
+      <span class="region-label">2時間圏</span>
+    </div>
+  </header>
+
+  <div class="wrap">
+
+    <section class="intro">
+      <h2>わざわざ予定を組んで行く、貸切サウナ 19軒</h2>
+      <p>
+        福岡・天神から車で2時間以内にある貸切サウナを 85軒調べ、<strong>空間の作り込み</strong>と<strong>サウナ室の中身</strong>の2つで絞り込んだ一覧です。
+        突発的に寄る店ではなく、行く日を決めて出かける日の候補として並べています。移動時間はすべて地図で実測した片道の値です。
+      </p>
+      <dl class="tally">
+        <div><dt>調べた</dt><dd>85<small>軒</small></dd></div>
+        <div><dt>残った</dt><dd>19<small>軒</small></dd></div>
+        <div><dt>薪ストーブ</dt><dd>6<small>軒</small></dd></div>
+        <div><dt>日帰り可</dt><dd>12<small>軒</small></dd></div>
+      </dl>
+    </section>
+
+    <section class="legend">
+      <h3>この一覧の読み方</h3>
+      <ul>
+        <li><b>距離で3つに分けています。</b>片道どれくらいかで、その日の組み立て方が変わるためです。</li>
+        <li><b>左の数字は片道の所要時間。</b>天神から高速を使った場合の実測値です。「目算」と付いたものだけは近隣地点からの推定です。</li>
+        <li><b>点は5段階。</b>左が空間の作り込み、右がサウナ室の中身。公式サイトで裏が取れていない項目が多い施設は上限を3にしています。</li>
+        <li><b>「要確認」は公式サイトに書かれていないこと。</b>推測で埋めずにそのまま残しています。行くと決めたら電話確認が要る項目です。</li>
+      </ul>
+    </section>
+
+    <!-- ========== BAND 1 ========== -->
+    <section class="band">
+      <div class="band-head">
+        <span class="band-range">〜60分</span>
+        <h2 class="band-name">午後だけで行って帰れる</h2>
+        <span class="band-count">9軒</span>
+      </div>
+
+      <article class="fac">
+        <div class="fac-time"><span class="num">59</span><span class="unit">分</span></div>
+        <div class="fac-main">
+          <h3>IZBA（イズバ）<a class="award" href="https://www.saunachelin.com/archive/2018/" target="_blank" rel="noopener">サウナシュラン 2018</a>
+            <span class="place">福岡県宗像市上八</span></h3>
+          <div class="scores">
+            <div class="score"><span>空間</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div></div>
+            <div class="score"><span>サウナ室</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div></div>
+          </div>
+          <div class="chips">
+            <span class="chip wood">薪（ペチカ）</span><span class="chip">自分で水をかけられる</span><span class="chip">100℃</span>
+            <span class="chip water">水風呂 10℃・飲める天然水</span><span class="chip">最大6名</span><span class="chip">日帰り</span>
+          </div>
+          <p class="why">ロシア産の赤松で組んだログハウスを丸ごと借りる、ロシア式のバーニャ。薪で焚くペチカという壁ごと温める作りで、電気ストーブの個室サウナとは熱と湿り気の質が根本から違います。水風呂は露天で、飲める掛け流しの天然水。1時間から使えて片道1時間という条件も現実的です。</p>
+          <p class="price"><b>1時間 ¥4,700</b>／2時間 ¥9,400／3時間 ¥13,500（5人目から1名 +¥800）</p>
+          <p class="caveat">施設の公式サイトがなく、料金と営業時間は第三者サイト由来。予約は電話のみ。営業開始時刻が情報源で食い違っています。</p>
+          <div class="links">
+            <a href="https://sauna-ikitai.com/saunas/3681" target="_blank" rel="noopener">サウナイキタイ</a>
+            <a href="https://www.google.com/maps/search/?api=1&amp;query=IZBA+宗像市" target="_blank" rel="noopener">地図</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="fac">
+        <div class="fac-time"><span class="num">57</span><span class="unit">分</span></div>
+        <div class="fac-main">
+          <h3>薪ストーブ＆木工 木ん家（ぼくんげ）<span class="place">福岡県うきは市浮羽町</span></h3>
+          <div class="scores">
+            <div class="score"><span>空間</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div></div>
+            <div class="score"><span>サウナ室</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div></div>
+          </div>
+          <div class="chips">
+            <span class="chip wood">薪（HUUM／NARVI ほか）</span><span class="chip unk">水かけ 要確認</span>
+            <span class="chip water">水風呂 うきはの地下水</span><span class="chip">1〜3名</span><span class="chip">日帰り</span>
+          </div>
+          <p class="why">薪ストーブの専門ショールームがやっているサウナ。並んでいるストーブがドイツ製、エストニア製、フィンランド製と本格的です。木の壁に囲まれたウッドデッキの上に、サウナ小屋・水風呂のミニプール・寝そべる椅子が一列に並ぶ露天完結型。90分3,000円からと、この内容では破格です。</p>
+          <p class="price"><b>1名 ¥3,000</b>／2名貸切 ¥5,000／3名貸切 ¥6,000（いずれも90分）</p>
+          <p class="caveat">予約サイトが開けず、料金は旅行サイト経由で確認した値。自分で水をかけられるか、水風呂の温度、土日祝が別料金かは未確認。</p>
+          <div class="links">
+            <a href="https://www.aplusinc.jp/showroom/bokunge/" target="_blank" rel="noopener">公式サイト</a>
+            <a href="https://reserva.be/bokunge" target="_blank" rel="noopener">予約</a>
+            <a href="https://sauna-ikitai.com/search?keyword=木ん家" target="_blank" rel="noopener">サウナイキタイ</a>
+            <a href="https://www.google.com/maps/search/?api=1&amp;query=木ん家+うきは市" target="_blank" rel="noopener">地図</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="fac">
+        <div class="fac-time"><span class="num">55</span><span class="unit">分</span></div>
+        <div class="fac-main">
+          <h3>神籬 HIMOROGI KARATSU001<span class="place">佐賀県唐津市東唐津</span></h3>
+          <div class="scores">
+            <div class="score"><span>空間</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div></div>
+            <div class="score"><span>サウナ室</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div></div>
+          </div>
+          <div class="chips">
+            <span class="chip unk">熱源 要確認</span><span class="chip">自分で水をかけられる</span>
+            <span class="chip water">屋外の水風呂（冷却装置つき）</span><span class="chip">6名</span><span class="chip">泊まりのみ</span>
+          </div>
+          <p class="why">厚い木の板を組んだ箱型のユニットを積んで作った一棟貸しの家。唐津城が見える海辺で、玄界灘まで歩いて1分。焚き火のできる半屋外スペースで外気浴ができます。建物ごと借りる形なので、時間を気にせず出たり入ったりできます。</p>
+          <p class="price">参考 <b>¥55,000〜</b>（1泊素泊まり・時期で変動）</p>
+          <p class="caveat">2026年4月にできたばかりで運用実績が浅い。日帰りでサウナだけ使えるかは未確認（できない可能性が高い）。ストーブの種類と水温も未記載。サウナは水着着用。</p>
+          <div class="links">
+            <a href="https://himorogi-stay.com/facilities/karatsu001/" target="_blank" rel="noopener">公式サイト</a>
+            <a href="https://sauna-ikitai.com/search?keyword=神籬" target="_blank" rel="noopener">サウナイキタイ</a>
+            <a href="https://www.google.com/maps/search/?api=1&amp;query=神籬+HIMOROGI+唐津" target="_blank" rel="noopener">地図</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="fac">
+        <div class="fac-time"><span class="num">51</span><span class="unit">分</span></div>
+        <div class="fac-main">
+          <h3>洋々庵 佐賀<span class="place">佐賀県佐賀市大和町川上</span></h3>
+          <div class="scores">
+            <div class="score"><span>空間</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div></div>
+            <div class="score"><span>サウナ室</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div></div>
+          </div>
+          <div class="chips">
+            <span class="chip wood">薪（オーナーの手作り）</span><span class="chip unk">水かけ 要確認</span>
+            <span class="chip water">地下水＋川に入れる</span><span class="chip">4名（会員は6名）</span><span class="chip">日帰り</span>
+          </div>
+          <p class="why">「九州の嵐山」と呼ばれる川上峡にある茅葺きの古民家。その脇にオーナーが自分で建てた薪サウナ小屋があります。水風呂は地下水ですが、目の前の川にそのまま入るのが本題。囲炉裏でBBQまで敷地の中で完結します。</p>
+          <p class="price"><b>120分 ¥11,000</b>／180分 ¥14,000（4名まで・非会員）。宿泊 ¥52,000〜</p>
+          <p class="caveat">自分で水をかけられるかは公式に記載なし。サウナ室の広さ・座面の段数はテレビ局の取材記事由来で、公式では未確認。</p>
+          <div class="links">
+            <a href="https://select-type.com/s/youyouan" target="_blank" rel="noopener">公式・予約</a>
+            <a href="https://sauna-ikitai.com/search?keyword=洋々庵" target="_blank" rel="noopener">サウナイキタイ</a>
+            <a href="https://www.google.com/maps/search/?api=1&amp;query=洋々庵+佐賀市大和町" target="_blank" rel="noopener">地図</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="fac">
+        <div class="fac-time"><span class="num">45</span><span class="unit">分</span><span class="est">目算</span></div>
+        <div class="fac-main">
+          <h3>愛犬と貸切サウナヴィラ糸島<span class="place">福岡県糸島市志摩野北</span></h3>
+          <div class="scores">
+            <div class="score"><span>空間</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div></div>
+            <div class="score"><span>サウナ室</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div></div>
+          </div>
+          <div class="chips">
+            <span class="chip unk">熱源 要確認</span><span class="chip">自分で水をかけられる</span><span class="chip">100℃超</span>
+            <span class="chip water">海が見える特注の氷水槽＋海そのもの</span><span class="chip">1〜6名／1日1組</span><span class="chip">泊まりのみ</span>
+          </div>
+          <p class="why">1日1組だけの一棟貸し。公式が「和と北欧が調和する静謐な空気」「福岡唯一の四角いサウナ。真冬でも100℃を超える」と書いています。水風呂は海の見える特注の氷水槽で、目の前の糸島の海そのものにも入れます。犬を連れて行けるのも特徴です。</p>
+          <p class="price">素泊まり <b>¥66,000〜</b>（1〜6名）／出張鮨の夕食つき ¥110,000〜</p>
+          <p class="caveat">泊まりのプランしか載っておらず、日帰りの可否は未確認。ストーブの種類と正確な室温も未記載。所要時間は近隣地点からの推定です。</p>
+          <div class="links">
+            <a href="https://itoshima-villa.com/" target="_blank" rel="noopener">公式サイト</a>
+            <a href="https://reserve.489ban.net/client/itoshima-villa/0/plan" target="_blank" rel="noopener">予約</a>
+            <a href="https://sauna-ikitai.com/search?keyword=貸切サウナヴィラ糸島" target="_blank" rel="noopener">サウナイキタイ</a>
+            <a href="https://www.google.com/maps/search/?api=1&amp;query=愛犬と貸切サウナヴィラ糸島" target="_blank" rel="noopener">地図</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="fac">
+        <div class="fac-time"><span class="num">43</span><span class="unit">分</span></div>
+        <div class="fac-main">
+          <h3>BAYROCKS（ベイロックス）<span class="place">福岡県糸島市志摩芥屋</span></h3>
+          <div class="scores">
+            <div class="score"><span>空間</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div></div>
+            <div class="score"><span>サウナ室</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div></div>
+          </div>
+          <div class="chips">
+            <span class="chip wood">薪（MORZH のテント）</span><span class="chip unk">水かけ 要確認</span><span class="chip">100℃超</span>
+            <span class="chip water">水風呂 14℃・地下水かけ流し</span><span class="chip">4名</span><span class="chip">日帰り</span>
+          </div>
+          <p class="why">テントサウナの最高級ブランドを薪で焚く構成。水風呂は立石山の地下水を掛け流しで常に14℃程度に保たれ、4人が同時に入れます。外気浴は芥屋海水浴場を見渡すオーシャンビューで、夜の枠は海と街明かりと星空に変わります。</p>
+          <p class="price"><b>2時間 ¥17,600＋税</b>（4名まで・1名追加 ¥3,300）</p>
+          <p class="caveat">自分で水をかけられるかは公式サイト本文に明記がありません。所要時間は近隣地点からの推定です。</p>
+          <div class="links">
+            <a href="https://bayrocks.jp/" target="_blank" rel="noopener">公式サイト</a>
+            <a href="https://coubic.com/bayrocks123/4425578" target="_blank" rel="noopener">予約</a>
+            <a href="https://sauna-ikitai.com/search?keyword=BAYROCKS" target="_blank" rel="noopener">サウナイキタイ</a>
+            <a href="https://www.google.com/maps/search/?api=1&amp;query=BAYROCKS+糸島+芥屋" target="_blank" rel="noopener">地図</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="fac">
+        <div class="fac-time"><span class="num">41</span><span class="unit">分</span></div>
+        <div class="fac-main">
+          <h3>SUN EFFECT<span class="place">福岡県福津市西福間</span></h3>
+          <div class="scores">
+            <div class="score"><span>空間</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div></div>
+            <div class="score"><span>サウナ室</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div></div>
+          </div>
+          <div class="chips">
+            <span class="chip unk">熱源 要確認</span><span class="chip">自分で水をかけられる</span>
+            <span class="chip water">水風呂 地下水</span><span class="chip">最大3名</span><span class="chip">日帰り</span>
+          </div>
+          <p class="why">壁と床を檜で仕上げ、「座ったときにちょうど水平線が見える」高さで窓を切ってあると公式が書いています。福間海岸を一望しながら、波の音と潮風の中で外気浴ができる作り。片道41分でこの立地が手に入るのが、市内のビルの個室との決定的な差です。</p>
+          <p class="price">90分 1〜2名 <b>¥6,100/人</b>／120分 1〜2名 ¥7,900/人（3名だと1人あたり上がります）</p>
+          <p class="caveat">ストーブの種類と室温は公式・検索ともに記載がなく未確認。</p>
+          <div class="links">
+            <a href="https://suneffect.jp/sauna/" target="_blank" rel="noopener">公式サイト</a>
+            <a href="https://coubic.com/suneffect" target="_blank" rel="noopener">予約</a>
+            <a href="https://sauna-ikitai.com/search?keyword=SUN EFFECT" target="_blank" rel="noopener">サウナイキタイ</a>
+            <a href="https://www.google.com/maps/search/?api=1&amp;query=SUN+EFFECT+福津市" target="_blank" rel="noopener">地図</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="fac">
+        <div class="fac-time"><span class="num small">市内</span></div>
+        <div class="fac-main">
+          <h3>SAUNA SAKURADO<a class="award" href="https://www.saunachelin.com/" target="_blank" rel="noopener">サウナシュラン 2025</a><a class="tracked" href="/">空き状況を追跡中</a>
+            <span class="place">福岡市博多区綱場町</span></h3>
+          <div class="scores">
+            <div class="score"><span>空間</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div></div>
+            <div class="score"><span>サウナ室</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div></div>
+          </div>
+          <div class="chips">
+            <span class="chip">電気（METOS の IKI）</span><span class="chip">自分で水をかけられる</span><span class="chip">90℃</span>
+            <span class="chip water">超軟水かけ流し・深さ3種</span><span class="chip">2〜7名／全6室</span><span class="chip">日帰り</span>
+          </div>
+          <p class="why">全6室が個室。水風呂が超軟水の掛け流しで、深さ90cm・100cm・110cmの3種類を部屋ごとに使い分けています。深さを選べる作りは他にありません。内装もピーター・ズントーの椅子、HAYの家具、真鍮と陶器という具体名で公開されています。裏取りが最も効いている施設です。</p>
+          <p class="price">2名125分 <b>¥9,000〜</b>／4名125分 ¥17,600〜／6名140分 ¥40,900〜（別途 登録料 ¥22,000）</p>
+          <p class="caveat">会員制で初回に登録料がかかります。室温と外気浴の有無は公式に記載なし。2-A室は2026年8月31日まで薪サウナ導入の工事中（営業は継続）。</p>
+          <div class="links">
+            <a href="https://sauna-sakurado.spa/" target="_blank" rel="noopener">公式サイト</a>
+            <a href="https://sauna-sakurado.spa/reservation/" target="_blank" rel="noopener">予約</a>
+            <a href="https://sauna-ikitai.com/search?keyword=SAKURADO" target="_blank" rel="noopener">サウナイキタイ</a>
+            <a href="https://www.google.com/maps/search/?api=1&amp;query=SAUNA+SAKURADO+博多" target="_blank" rel="noopener">地図</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="fac">
+        <div class="fac-time"><span class="num small">市内</span></div>
+        <div class="fac-main">
+          <h3>サウナヨーガン福岡天神「緑 -Green-」<a class="tracked" href="/">空き状況を追跡中</a>
+            <span class="place">福岡市中央区舞鶴</span></h3>
+          <div class="scores">
+            <div class="score"><span>空間</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div></div>
+            <div class="score"><span>サウナ室</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div></div>
+          </div>
+          <div class="chips">
+            <span class="chip">電気（フィンランド式＋遠赤外線）</span><span class="chip">水かけ可・アロマ12種</span>
+            <span class="chip">80〜100℃で自分で調整</span><span class="chip water">水風呂 10℃前後</span><span class="chip">3名</span><span class="chip">日帰り</span>
+          </div>
+          <p class="why">温度を自分で80〜100℃の範囲に振れて、12種類のアロマから選んで水をかけられます。市内の個室サウナでは珍しく、貸切枠に外気浴スペースが付いています。150分の枠があるので、天神でじっくり組みたい日向き。</p>
+          <p class="price">平日 90分 <b>¥7,700</b>／150分 ¥9,900　土日祝 90分 ¥8,800／150分 ¥13,200（3名）</p>
+          <p class="caveat">ストーブの機種は未確認。ホテル9階の複合温浴施設の中の1室で、建物としての作り込みを示す情報は乏しい。</p>
+          <div class="links">
+            <a href="https://yogan-sauna-fukuoka-tenjin.jp/private-sauna/" target="_blank" rel="noopener">公式サイト</a>
+            <a href="https://yogan-sauna-fukuoka-tenjin.jp/price/" target="_blank" rel="noopener">料金・予約</a>
+            <a href="https://sauna-ikitai.com/search?keyword=サウナヨーガン" target="_blank" rel="noopener">サウナイキタイ</a>
+            <a href="https://www.google.com/maps/search/?api=1&amp;query=サウナヨーガン福岡天神" target="_blank" rel="noopener">地図</a>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <!-- ========== BAND 2 ========== -->
+    <section class="band">
+      <div class="band-head">
+        <span class="band-range">60〜90分</span>
+        <h2 class="band-name">1日をこれに充てる</h2>
+        <span class="band-count">8軒</span>
+      </div>
+
+      <article class="fac">
+        <div class="fac-time"><span class="num">67</span><span class="unit">分</span></div>
+        <div class="fac-main">
+          <h3>サウナ旅館よろづや<span class="place">大分県日田市隈</span></h3>
+          <div class="scores">
+            <div class="score"><span>空間</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div></div>
+            <div class="score"><span>サウナ室</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div></div>
+          </div>
+          <div class="chips">
+            <span class="chip">Harvia 製</span><span class="chip unk">薪か電気か 要確認</span><span class="chip">水かけ可・かぼす</span>
+            <span class="chip water">水風呂 16.5℃で固定</span><span class="chip">1〜4名／全8室</span><span class="chip">日帰りも可</span>
+          </div>
+          <p class="why">旅館を丸ごと建て替えて、全8室すべてを約70㎡の川向きサウナ部屋にした宿。日田の竹の祭りや下駄など、地元の題材を部屋ごとのテーマにして作り分けています。こもれる広さと部屋ごとの作り分けの両方が揃っているのはここだけ。泊まらずに4時間・8時間だけ使うプランもあります。</p>
+          <p class="price">日帰り4時間 平日2名 <b>¥33,300</b>／日帰り8時間 2名 ¥53,240（食事つき ¥82,280）／宿泊1泊2食 ¥66,000〜</p>
+          <p class="caveat">室温は「好みの熱さに設定できる」とあるだけで数値は未記載。ストーブがHarvia製としか書かれておらず、薪か電気かは未確認。</p>
+          <div class="links">
+            <a href="https://yorozuya-hita.com/rooms/" target="_blank" rel="noopener">公式サイト</a>
+            <a href="https://yorozuya-hita.com/dayuse/" target="_blank" rel="noopener">日帰りプラン</a>
+            <a href="https://sauna-ikitai.com/search?keyword=よろづや 日田" target="_blank" rel="noopener">サウナイキタイ</a>
+            <a href="https://www.google.com/maps/search/?api=1&amp;query=よろづや+日田市隈" target="_blank" rel="noopener">地図</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="fac">
+        <div class="fac-time"><span class="num">77</span><span class="unit">分</span></div>
+        <div class="fac-main">
+          <h3>御船山楽園ホテル サウナ付客室 205／206<a class="award" href="https://www.saunachelin.com/archive/2021/" target="_blank" rel="noopener">サウナシュラン 3年連続1位</a>
+            <span class="place">佐賀県武雄市武雄町</span></h3>
+          <div class="scores">
+            <div class="score"><span>空間</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div></div>
+            <div class="score"><span>サウナ室</span><div class="dots"><i></i><i></i><i></i><i></i><i></i></div><em>未確認</em></div>
+          </div>
+          <div class="chips">
+            <span class="chip unk">客室サウナの熱源 要確認</span><span class="chip water">水風呂・シャワー付き</span>
+            <span class="chip">2名／2室のみ</span><span class="chip">50㎡・70㎡</span><span class="chip">泊まりのみ</span>
+          </div>
+          <p class="why">サウナシュランで2019・2020・2021と3年連続1位を取って殿堂入りした宿。有名な「らかんの湯」は男女別の大浴場ですが、そのほかに<strong>プライベートサウナ付きの客室が2室だけ</strong>あります。チェックインからチェックアウトまで、いつでも好きな時間に入れる作り。大浴場の薪サウナは自分で水をかけられます。</p>
+          <p class="price">1泊2食つき 1名 <b>¥39,930〜</b></p>
+          <p class="caveat">客室サウナ自体のストーブ・温度・水風呂の詳細は公式に記載がありません。日帰りで貸切サウナだけを使うことはできません。2室しかないため予約は取りにくいはずです。</p>
+          <div class="links">
+            <a href="https://www.mifuneyama.co.jp/honkan.html" target="_blank" rel="noopener">客室ページ</a>
+            <a href="https://www.mifuneyama.co.jp/rakan.html" target="_blank" rel="noopener">らかんの湯</a>
+            <a href="https://sauna-ikitai.com/saunas/6060" target="_blank" rel="noopener">サウナイキタイ</a>
+            <a href="https://www.google.com/maps/search/?api=1&amp;query=御船山楽園ホテル+武雄" target="_blank" rel="noopener">地図</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="fac">
+        <div class="fac-time"><span class="num">80</span><span class="unit">分</span></div>
+        <div class="fac-main">
+          <h3>風の森（奥武雄温泉）カガミノサウナ<span class="place">佐賀県武雄市西川登町</span></h3>
+          <div class="scores">
+            <div class="score"><span>空間</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div></div>
+            <div class="score"><span>サウナ室</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div></div>
+          </div>
+          <div class="chips">
+            <span class="chip">iki のハーフ型（日本初）</span><span class="chip">石 約50kg</span><span class="chip unk">水かけ 要確認</span>
+            <span class="chip water">水風呂 15〜18℃・重曹泉・氷で調整可</span><span class="chip">2名</span><span class="chip">泊まりのみ</span>
+          </div>
+          <p class="why">2025年1月にできた新しいサウナ。ストーブはフィンランド製ikiのハーフ型で、これが日本初導入。サウナストーンを約50kg積んでいます。外観が鏡張りで、森に向かって大きなガラス窓が開く設計。水風呂は重曹泉で、氷を足して温度を下げられます。</p>
+          <p class="price"><b>90分 ¥7,700</b>（着替え時間込み）</p>
+          <p class="caveat">公式に「当館は宿泊専用のため、日帰り温泉・サウナはお受けしていません」と明記されており、泊まりが前提。自分で水をかけてよいかも明言がありません。</p>
+          <div class="links">
+            <a href="https://goten-resort.jp/kazenomori/sauna/" target="_blank" rel="noopener">公式サイト</a>
+            <a href="https://sauna-ikitai.com/search?keyword=風の森 奥武雄" target="_blank" rel="noopener">サウナイキタイ</a>
+            <a href="https://www.google.com/maps/search/?api=1&amp;query=奥武雄温泉+風の森" target="_blank" rel="noopener">地図</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="fac">
+        <div class="fac-time"><span class="num">80</span><span class="unit">分</span><span class="est">目算</span></div>
+        <div class="fac-main">
+          <h3>OND HOTEL プライベートサウナ<span class="place">佐賀県武雄市武雄町永島</span></h3>
+          <div class="scores">
+            <div class="score"><span>空間</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div></div>
+            <div class="score"><span>サウナ室</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div></div>
+          </div>
+          <div class="chips">
+            <span class="chip">HARVIA ／ Saunum の空気循環</span><span class="chip unk">水かけ 要確認</span>
+            <span class="chip water">深さ90cmの地下水／直径110cmの陶器</span><span class="chip unk">定員 要確認</span>
+          </div>
+          <p class="why">和と北欧で美意識を分けた2室構成。水風呂の作りが特に具体的で、和のほうは深さ90cmに冷やした地下水、北欧のほうは直径110cmの陶器製で鍾乳洞のような青白い意匠。北欧側はエストニアのSaunum社の空気循環システムを入れています。</p>
+          <p class="price">2時間制 <b>¥10,000〜</b>（※公式非公開・取材記事の値）</p>
+          <p class="caveat">料金が公式に出ておらず、依拠しているのは取材記事のみ。定員・室温・水かけの可否もすべて未確認。予約サイトも開けませんでした。行く前に電話確認が要ります。</p>
+          <div class="links">
+            <a href="https://www.ondhotel.jp/private_sauna/" target="_blank" rel="noopener">公式サイト</a>
+            <a href="https://sauna-ikitai.com/search?keyword=OND HOTEL" target="_blank" rel="noopener">サウナイキタイ</a>
+            <a href="https://www.google.com/maps/search/?api=1&amp;query=OND+HOTEL+武雄" target="_blank" rel="noopener">地図</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="fac">
+        <div class="fac-time"><span class="num">80</span><span class="unit">分</span><span class="est">目算</span></div>
+        <div class="fac-main">
+          <h3>OND SAUNA「火のサウナ」「金のサウナ」<span class="place">佐賀県武雄市武雄町 ・ OND PARK内</span></h3>
+          <div class="scores">
+            <div class="score"><span>空間</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div></div>
+            <div class="score"><span>サウナ室</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div></div>
+          </div>
+          <div class="chips">
+            <span class="chip unk">貸切棟の熱源 要確認</span><span class="chip unk">水かけ 要確認</span>
+            <span class="chip">各6名</span><span class="chip">135分制</span><span class="chip">日帰り</span>
+          </div>
+          <p class="why">木・火・土・金・水の五行をテーマにした5棟のサウナが森の中に点在していて、そのうち「火」と「金」の2棟が貸切枠。「金のサウナ」は全身が鏡張りで、森の中に現代アートが置かれているような外観です。料金と開始枠が公式のQ&amp;Aできれいに確定しているのも珍しい。</p>
+          <p class="price">貸切 135分制 1名 <b>¥7,700</b>〜 6名 ¥24,200（開始 9:00／11:30／14:00／16:30／19:00）</p>
+          <p class="caveat">薪ストーブと確認できているのは共用の「木のサウナ」だけで、貸切の2棟の熱源・水かけの可否・水風呂はいずれも未記載。</p>
+          <div class="links">
+            <a href="https://www.ondpark.jp/" target="_blank" rel="noopener">公式サイト</a>
+            <a href="https://ond-park.stores.jp/reserve/ond_sauna/booking_pages" target="_blank" rel="noopener">予約</a>
+            <a href="https://sauna-ikitai.com/search?keyword=OND SAUNA" target="_blank" rel="noopener">サウナイキタイ</a>
+            <a href="https://www.google.com/maps/search/?api=1&amp;query=OND+PARK+武雄" target="_blank" rel="noopener">地図</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="fac">
+        <div class="fac-time"><span class="num">81</span><span class="unit">分</span></div>
+        <div class="fac-main">
+          <h3>旅館大村屋 貸切風呂「薫風の湯」<span class="place">佐賀県嬉野市嬉野町</span></h3>
+          <div class="scores">
+            <div class="score"><span>空間</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div></div>
+            <div class="score"><span>サウナ室</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div></div>
+          </div>
+          <div class="chips">
+            <span class="chip">電気（Auroom Cale Glass）</span><span class="chip">水をかけられる</span>
+            <span class="chip water">水風呂あり</span><span class="chip">1〜2名</span><span class="chip">日帰り</span>
+          </div>
+          <p class="why">江戸時代創業の老舗旅館の貸切風呂。ストーブの機種が北欧製と明記され、水をかけてよいことも公式に書いてあります。国産ヒノキの湯船と一体になった浴室に、サウナと水風呂が収まる構成。料金・時間・機種まで公式で取れており、今回のリストで最も裏取りが効いている一つです。</p>
+          <p class="price">外来入浴 <b>90分 ¥11,000</b>／宿泊者 ¥8,800（延長30分 ¥2,200・要事前予約）</p>
+          <p class="caveat">水風呂の温度と水質、サウナ室の広さは未記載。定員1〜2名なので、複数人で行く日には向きません。</p>
+          <div class="links">
+            <a href="https://www.oomuraya.co.jp/ryokan/bath/" target="_blank" rel="noopener">公式サイト</a>
+            <a href="https://coubic.com/oomuraya" target="_blank" rel="noopener">予約</a>
+            <a href="https://sauna-ikitai.com/search?keyword=大村屋 嬉野" target="_blank" rel="noopener">サウナイキタイ</a>
+            <a href="https://www.google.com/maps/search/?api=1&amp;query=旅館大村屋+嬉野" target="_blank" rel="noopener">地図</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="fac">
+        <div class="fac-time"><span class="num">82</span><span class="unit">分</span></div>
+        <div class="fac-main">
+          <h3>奥日田温泉うめひびき サウナラウンジ紅鶴<span class="place">大分県日田市大山町</span></h3>
+          <div class="scores">
+            <div class="score"><span>空間</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div></div>
+            <div class="score"><span>サウナ室</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div></div>
+          </div>
+          <div class="chips">
+            <span class="chip unk">熱源 要確認</span><span class="chip">自分で水をかけられる</span>
+            <span class="chip water">水風呂 大山町の地下水</span><span class="chip">4〜6名</span><span class="chip">泊まりのみ</span>
+          </div>
+          <p class="why">2024年7月にできた新設のサウナ。作りの違う3室に加えて、響渓谷を望むテラス付きのラウンジがあります。水風呂は地元の地下水。夜23時まで、朝は6時から使えるので、泊まる日の時間の使い方に幅が出ます。</p>
+          <p class="price">蝶の羽重 <b>¥33,000</b>／楊貴妃・舞扇 ¥27,500（各2名まで・3名以降1名 +¥5,500）</p>
+          <p class="caveat">公式に「ご宿泊のお客さま専用の施設」と明記されており、日帰りでは使えません。ストーブの機種と室温も未確認。</p>
+          <div class="links">
+            <a href="https://www.umehibiki.jp/sauna/" target="_blank" rel="noopener">公式サイト</a>
+            <a href="https://sauna-ikitai.com/search?keyword=うめひびき" target="_blank" rel="noopener">サウナイキタイ</a>
+            <a href="https://www.google.com/maps/search/?api=1&amp;query=奥日田温泉うめひびき" target="_blank" rel="noopener">地図</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="fac">
+        <div class="fac-time"><span class="num">89</span><span class="unit">分</span></div>
+        <div class="fac-main">
+          <h3>トトノウバイ<span class="place">熊本県菊池市七城町</span></h3>
+          <div class="scores">
+            <div class="score"><span>空間</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div></div>
+            <div class="score"><span>サウナ室</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div></div>
+          </div>
+          <div class="chips">
+            <span class="chip wood">薪（自分でくべて温度を調整）</span><span class="chip unk">水かけ 要確認</span>
+            <span class="chip water">水風呂は屋外の岩「風神石」</span><span class="chip">最大6名</span><span class="chip">24時間・日帰り</span>
+          </div>
+          <p class="why">宮大工が杉と檜で手作りしたサウナ小屋。フィンランド式の薪ストーブに、自分で薪をくべて温度を上げていく形式です。水風呂は屋外に置かれた白い岩をくり抜いた「風神石」という、他では見ない意匠。24時間営業で完全に貸切、2時間半で7,000円と価格も抑えめです。</p>
+          <p class="price">1〜2名 150分 <b>¥7,000</b>／3名 ¥9,000（3名以降 1名 +¥3,000）</p>
+          <p class="caveat">水をかけてよいかは公式に記載がなく未確認。室温も未記載。予約ページの場所が特定できていません。</p>
+          <div class="links">
+            <a href="https://www.totonoubai.com/" target="_blank" rel="noopener">公式サイト</a>
+            <a href="https://sauna-ikitai.com/search?keyword=トトノウバイ" target="_blank" rel="noopener">サウナイキタイ</a>
+            <a href="https://www.google.com/maps/search/?api=1&amp;query=トトノウバイ+菊池市" target="_blank" rel="noopener">地図</a>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <!-- ========== BAND 3 ========== -->
+    <section class="band">
+      <div class="band-head">
+        <span class="band-range">90〜120分</span>
+        <h2 class="band-name">泊まりも視野に入れる</h2>
+        <span class="band-count">2軒</span>
+      </div>
+
+      <article class="fac">
+        <div class="fac-time"><span class="num">95</span><span class="unit">分</span></div>
+        <div class="fac-main">
+          <h3>COCO VILLA 湯布院<span class="place">大分県由布市湯布院町川上</span></h3>
+          <div class="scores">
+            <div class="score"><span>空間</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div></div>
+            <div class="score"><span>サウナ室</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div></div>
+          </div>
+          <div class="chips">
+            <span class="chip wood">薪（DAICHI）</span><span class="chip">自分で水をかけられる</span>
+            <span class="chip water">水風呂あり（1名）</span><span class="chip">サウナ4名／1日1組</span><span class="chip">泊まりのみ</span>
+          </div>
+          <p class="why">1日1組だけの一棟貸し。庭の一角に薪のサウナ小屋があり、自分で水をかけられます。金鱗湖にほど近い立地。チェックインからチェックアウトまで、時間枠に追われずに薪サウナを使い続けられるのが、時間貸しの個室サウナとの一番の違いです。</p>
+          <p class="price">1泊1室（2名） <b>¥36,226〜</b>（時期で大きく変動）</p>
+          <p class="caveat">宿泊者専用と思われ、日帰りの記載はありません。外気浴スペースの有無も未記載。料金は特定時点のもの。</p>
+          <div class="links">
+            <a href="https://coco-villa.jp/villa/yufuin/" target="_blank" rel="noopener">公式サイト</a>
+            <a href="https://sauna-ikitai.com/search?keyword=COCO VILLA 湯布院" target="_blank" rel="noopener">サウナイキタイ</a>
+            <a href="https://www.google.com/maps/search/?api=1&amp;query=COCO+VILLA+湯布院" target="_blank" rel="noopener">地図</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="fac">
+        <div class="fac-time"><span class="num">96</span><span class="unit">分</span></div>
+        <div class="fac-main">
+          <h3>湯屋 水禅 -Luxury Sauna &amp; Spa-<span class="place">熊本県熊本市中央区水前寺</span></h3>
+          <div class="scores">
+            <div class="score"><span>空間</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div></div>
+            <div class="score"><span>サウナ室</span><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div></div>
+          </div>
+          <div class="chips">
+            <span class="chip unk">熱源 要確認</span><span class="chip">石は阿蘇の玄武岩</span><span class="chip">自分で水をかけられる</span>
+            <span class="chip">90〜100℃</span><span class="chip water">檜の水風呂（水・湯の2槽）</span><span class="chip">最大5名</span><span class="chip">日帰り</span>
+          </div>
+          <p class="why">茶室に見立てて、躙り口から身をかがめて入る設計。休憩は小上がりの畳で、体験が一本の筋で通っています。サウナストーンに2〜3万年前の阿蘇の噴火でできた玄武岩を使っている点と、水と湯の檜風呂を2つ備える点（熊本初と公式が明記）が具体的。室温も数値で公開されています。</p>
+          <p class="price">平日 120分 <b>¥10,000〜</b>／土日祝 120分 ¥11,000〜（5名まで込み・7:00〜24:00営業）</p>
+          <p class="caveat">ストーブが電気か薪かは未確認。檜の水風呂が天然水か冷却装置かも未記載。ビルの中の施設のため外気浴の記載はありません。</p>
+          <div class="links">
+            <a href="https://www.matsuyahonkan.com/suizen/" target="_blank" rel="noopener">公式サイト</a>
+            <a href="https://sauna-ikitai.com/search?keyword=水禅" target="_blank" rel="noopener">サウナイキタイ</a>
+            <a href="https://www.google.com/maps/search/?api=1&amp;query=湯屋+水禅+熊本" target="_blank" rel="noopener">地図</a>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <!-- ========== DROPPED ========== -->
+    <section class="dropped">
+      <h2>惜しくも2時間を超えたもの</h2>
+      <p class="why">中身は良いのですが、実測すると2時間をわずかに超えました。条件を少し緩めるなら、この3軒は真っ先に戻ってきます。</p>
+
+      <div class="drop-row">
+        <span class="t">2時間06分</span>
+        <div>
+          <b>森のサウナ（吉原ごんべえ村）</b> <span class="pl">熊本県南小国町満願寺</span>
+          <p>けやきの森2,500㎡を1組で3時間貸切。フィンランドMONDEX社の薪ストーブ、小国杉のアロマ水、九重山の伏流水の水風呂。<strong>薪・水かけ・天然水・森の4つすべてが公式で裏取りできた唯一の施設</strong>で、サウナ室の評価は今回の最高点でした。2名 ¥12,000／3時間。</p>
+          <div class="links">
+            <a href="https://www.gonbemura.com/hatagoyomi/morinosauna/" target="_blank" rel="noopener">公式サイト</a>
+            <a href="https://sauna-ikitai.com/search?keyword=吉原ごんべえ村" target="_blank" rel="noopener">サウナイキタイ</a>
+            <a href="https://www.google.com/maps/search/?api=1&amp;query=吉原ごんべえ村+南小国" target="_blank" rel="noopener">地図</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="drop-row">
+        <span class="t">2時間07分</span>
+        <div>
+          <b>MIKI TAO SAUNA</b> <span class="pl">熊本県阿蘇市一の宮町</span>
+          <p>薪サウナで、火を見ながら自分の好きなタイミングで水をかけられると公式に明記。目の前を流れる小川をそのまま水風呂に使います。料金がサウナ単体か施設全体かを公式で判別できませんでした。</p>
+          <div class="links">
+            <a href="https://mikitaosauna.com/sauna.html" target="_blank" rel="noopener">公式サイト</a>
+            <a href="https://sauna-ikitai.com/search?keyword=MIKI TAO" target="_blank" rel="noopener">サウナイキタイ</a>
+            <a href="https://www.google.com/maps/search/?api=1&amp;query=MIKI+TAO+SAUNA+阿蘇" target="_blank" rel="noopener">地図</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="drop-row">
+        <span class="t">2時間07分</span>
+        <div>
+          <b>Mökki（モッキ）</b> <span class="pl">大分県大分市神崎</span>
+          <p>別府湾を一望する高台に、薪の樽型サウナとガスの樽型サウナ。どちらも自分で水をかけられます。2時間貸切で薪 ¥16,500／ガス ¥13,200。木曜定休。</p>
+          <div class="links">
+            <a href="https://mokki-sauna.com/" target="_blank" rel="noopener">公式サイト</a>
+            <a href="https://sauna-ikitai.com/search?keyword=Mökki" target="_blank" rel="noopener">サウナイキタイ</a>
+            <a href="https://www.google.com/maps/search/?api=1&amp;query=Mokki+サウナ+大分市神崎" target="_blank" rel="noopener">地図</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== SOURCES ========== -->
+    <section class="sources">
+      <h3>あわせて見るサイト</h3>
+      <dl>
+        <div>
+          <dt><a href="https://sauna-ikitai.com/" target="_blank" rel="noopener">サウナイキタイ →</a></dt>
+          <dd>国内最大のサウナ検索サイト。実際に入った人の投稿で、サウナ室の温度・水風呂の温度・外気浴の有無が施設ごとに載っています。このページで「要確認」にした項目は、ここで実測値の投稿が見つかることがあります。各施設のリンクから飛べます。</dd>
+        </div>
+        <div>
+          <dt><a href="https://www.saunachelin.com/" target="_blank" rel="noopener">サウナシュラン →</a></dt>
+          <dd>TTNE が毎年発表している、全国のサウナ施設の年間ランキング。2018年から続いており、歴代の受賞施設は約74軒。このページの2時間圏内では、御船山楽園ホテル（3年連続1位で殿堂入り）、SAUNA SAKURADO（2025年）、IZBA（2018年）の3軒が受賞しています。</dd>
+        </div>
+        <div>
+          <dt><a href="https://www.google.co.jp/maps/@33.1545417,130.0677517,8.73z/data=!4m3!11m2!2sR_0kVBVFQhe0XkWFU6KtGA!3e3" target="_blank" rel="noopener">サウナシュラン受賞施設マップ →</a></dt>
+          <dd>歴代受賞施設71軒をGoogleマップ上に置いた公開リスト。全国どこに何があるか一目で分かります。</dd>
+        </div>
+      </dl>
+    </section>
+
+    <footer class="note">
+      <p>調べた85軒のうち64軒は、公式サイトに料金や設備の記載がない・予約ページが開けない・共用施設だった等の理由で落としました。空き状況ページで追いかけている KUDOCHI・SAUNA OOO・BASE・脈・GIRAFFE・テンジンサウナ も、この2つの基準では上位に届かず今回は外れています（突発的に寄る用途では引き続き有用です）。</p>
+      <p>移動時間は天神を起点に、高速道路を使った片道をその都度地図で計算した値です。「目算」と付いたものだけは近隣地点からの推定で、渋滞や時間帯で変わります。料金・設備は2026年8月5日時点で公式サイトから確認できた内容のみを載せ、確認できなかったものは「要確認」として空欄のまま残しています。</p>
+    </footer>
+
+  </div>
+</body>
+</html>

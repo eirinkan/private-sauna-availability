@@ -145,6 +145,26 @@
       letter-spacing: 0.05em;
     }
 
+    /* 遠出して行く貸切サウナ一覧へのリンク */
+    .trip-link {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--accent);
+      text-decoration: none;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 10px;
+      white-space: nowrap;
+      transition: all 0.2s ease;
+    }
+
+    .trip-link:hover {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
     select {
       padding: 6px 8px;
       border: 1px solid var(--border);
@@ -682,6 +702,7 @@
         <span class="toggle-label">空きのみ</span>
         <div class="toggle-switch active" id="availableOnlyToggle"></div>
       </div>
+      <a class="trip-link" href="/trip">遠出して行く貸切サウナ</a>
       <span class="region-label">福岡</span>
     </div>
   </header>

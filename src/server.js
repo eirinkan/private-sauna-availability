@@ -11,6 +11,11 @@ const PORT = process.env.PORT || 3000;
 // 静的ファイル配信
 app.use(express.static(path.join(__dirname, '../public')));
 
+// 遠出して行く貸切サウナ一覧（拡張子なしの短いURLでも開けるようにする）
+app.get('/trip', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/trip.html'));
+});
+
 // API: 空き状況取得
 app.get('/api/availability', async (req, res) => {
   const date = req.query.date || new Date().toISOString().split('T')[0];
