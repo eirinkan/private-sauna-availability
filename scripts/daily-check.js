@@ -26,7 +26,6 @@ const PRODUCTION_URL = 'https://private-sauna-availability-526007709848.asia-nor
 
 // 監視対象の施設（スクレイピングが壊れやすい施設）
 const WATCH_TARGETS = [
-  { keyword: 'GIRAFFE 南天神', shortName: 'GIRAFFE南天神' },
   { keyword: 'GIRAFFE 天神', shortName: 'GIRAFFE天神' },
   { keyword: 'サウナヨーガン', shortName: 'ヨーガン' },
   { keyword: '脈', shortName: '脈' }

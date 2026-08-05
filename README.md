@@ -8,7 +8,6 @@
 |--------|-------------|
 | KUDOCHI福岡中洲 | hacomono |
 | SAUNA SAKURADO | 独自システム |
-| GIRAFFE 南天神 | RESERVA |
 | GIRAFFE 天神 | RESERVA |
 | SAUNA OOO FUKUOKA | gflow |
 | BASE Private sauna | Coubic |
@@ -152,7 +151,7 @@ gcloud scheduler jobs create http sauna-refresh-job \
 │   ├── health-monitor.js # ヘルスモニタリング
 │   └── sites/          # 各サイト用スクレイパー
 │       ├── sakurado.js # SAUNA SAKURADO
-│       ├── reserva.js  # GIRAFFE南天神, GIRAFFE天神
+│       ├── reserva.js  # GIRAFFE天神
 │       ├── hacomono.js # KUDOCHI
 │       ├── gflow.js    # SAUNA OOO
 │       ├── coubic.js   # BASE

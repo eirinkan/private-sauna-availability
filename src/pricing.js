@@ -66,21 +66,6 @@ const PRICING = {
     ]
   },
 
-  // SAUNA Giraffe 南天神
-  giraffeMiamitenjin: {
-    name: 'GIRAFFE 南天神',
-    url: 'https://reserva.be/giraffe_minamitenjin',
-    note: '人数で料金が異なる',
-    plans: [
-      { name: '「陽」1名', price: 6500, duration: 120, capacity: 1 },
-      { name: '「陽」2名', price: 8500, duration: 120, capacity: 2 },
-      { name: '「陽」3名', price: 10500, duration: 120, capacity: 3 },
-      { name: '「陽」4名', price: 12500, duration: 120, capacity: 4 },
-      { name: '「陰」1名', price: 6500, duration: 120, capacity: 1 },
-      { name: '「陰」2名', price: 8500, duration: 120, capacity: 2 }
-    ]
-  },
-
   // SAUNA Giraffe 天神
   giraffeTenjin: {
     name: 'GIRAFFE 天神',

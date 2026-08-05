@@ -203,14 +203,13 @@ const timeRange = timeParts[0].replace(/^0/, '') + '〜' + timeParts[1].replace(
 - 2026-01-26 02:30頃: 修正デプロイ → 経過観察中
 
 **スクレイピング順序（修正後）**:
-1. GIRAFFE南天神（RESERVA）← 重点監視
-2. GIRAFFE天神（RESERVA）← 重点監視
-3. サウナヨーガン（RESERVA）← 重点監視
-4. 脈 MYAKU（spot-ly）← 重点監視
-5. KUDOCHI（hacomono）
-6. SAKURADO
-7. SAUNA OOO（gflow）
-8. BASE（Coubic）
+1. GIRAFFE天神（RESERVA）← 重点監視
+2. サウナヨーガン（RESERVA）← 重点監視
+3. 脈 MYAKU（spot-ly）← 重点監視
+4. KUDOCHI（hacomono）
+5. SAKURADO
+6. SAUNA OOO（gflow）
+7. BASE（Coubic）
 
 **確認コマンド**:
 ```bash
@@ -360,7 +359,7 @@ try {
 
 1. **命名規則**
    - 施設キー: キャメルケース（例: `giraffeTenjin`）
-   - 同一ブランド複数店舗: `ブランド名+地域名`（例: `giraffeMiamitenjin`, `giraffeTenjin`）
+   - 同一ブランド複数店舗: `ブランド名+地域名`（例: `giraffeTenjin`）
 
 2. **地域別ファイル構成**（将来的な拡張）
    - 現在: `src/sites/` に予約システム別

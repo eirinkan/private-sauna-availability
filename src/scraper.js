@@ -185,16 +185,7 @@ let isScraping = false;
 async function scrapeReservaGroup(browser, data) {
   console.log('  [グループA: RESERVA系 - 直列処理開始]');
 
-  // GIRAFFE 南天神 (RESERVA)
-  console.log('  - GIRAFFE南天神 スクレイピング中...');
-  try {
-    data.facilities.giraffeMiamitenjin = await scrapeWithMonitoring('giraffeMiamitenjin', reserva.scrapeMiamitenjin, browser);
-  } catch (e) {
-    console.error('    GIRAFFE南天神 エラー:', e.message);
-    data.facilities.giraffeMiamitenjin = { error: e.message };
-  }
-
-  // GIRAFFE 天神 (RESERVA) - Cookie再利用で高速化
+  // GIRAFFE 天神 (RESERVA)
   console.log('  - GIRAFFE天神 スクレイピング中...');
   try {
     data.facilities.giraffeTenjin = await scrapeWithMonitoring('giraffeTenjin', reserva.scrapeTenjin, browser);
@@ -303,7 +294,6 @@ async function getAvailability(date) {
   const facilityInfo = [
     { key: 'sakurado', name: 'SAUNA SAKURADO', url: 'https://sauna-sakurado.spa/reservation/', hpUrl: 'https://sauna-sakurado.spa/', mapUrl: 'https://www.google.com/maps/search/?api=1&query=SAUNA+SAKURADO+福岡' },
     { key: 'base', name: 'BASE Private sauna', url: 'https://coubic.com/base-private-sauna/3957380/book/course_type', hpUrl: 'https://base-sauna.jp/', mapUrl: 'https://www.google.com/maps/search/?api=1&query=BASE+Private+sauna+福岡' },
-    { key: 'giraffeMiamitenjin', name: 'GIRAFFE 南天神', url: 'https://reserva.be/giraffe_minamitenjin', hpUrl: 'https://sauna-giraffe.com/minami/', mapUrl: 'https://maps.app.goo.gl/jzrDoYaTVege5srB6' },
     { key: 'giraffeTenjin', name: 'GIRAFFE 天神', url: 'https://reserva.be/giraffe_minamitenjin', hpUrl: 'https://sauna-giraffe.com/tenjin/', mapUrl: 'https://maps.app.goo.gl/nAnPLjANSzuPVeLZA' },
     { key: 'saunaOoo', name: 'SAUNA OOO FUKUOKA', url: 'https://sw.gflow.cloud/ooo-fukuoka/calendar_open', hpUrl: 'https://ooo-sauna.com/fukuoka.html', mapUrl: 'https://www.google.com/maps/search/?api=1&query=SAUNA+OOO+FUKUOKA' },
     { key: 'myaku', name: '脈 MYAKU', url: 'https://spot-ly.jp/ja/hotels/176', hpUrl: 'https://www.myaku-sauna.com/', mapUrl: 'https://www.google.com/maps/search/?api=1&query=脈+MYAKU+サウナ+天神', kyuStayUrl: 'https://hotel.travel.rakuten.co.jp/hotelinfo/plan/?f_no=191639&f_flg=PLAN' },

@@ -747,8 +747,6 @@
       // GIRAFFE
       '「陰」静の陰影': { capacity: 4, base: 7700, additional: 3300, nightBase: 12100, nightAdditional: 5500 },
       '「陽」光の陽彩': { capacity: 7, base: 6600, additional: 3300, nightBase: 11000, nightAdditional: 5500 },
-      '和の静寂': { capacity: 4, base: 5500, additional: 2200 },
-      '温冷交互': { capacity: 4, base: 5500, additional: 2200 },
       // BASE（定員2名、人数・曜日別料金）
       'BASE': {
         capacity: 2,
@@ -772,8 +770,6 @@
       if (roomName.includes('シカク')) return 'シカク';
       if (roomName.includes('「陰」')) return '「陰」静の陰影';
       if (roomName.includes('「陽」')) return '「陽」光の陽彩';
-      if (roomName.includes('和の静寂')) return '和の静寂';
-      if (roomName.includes('温冷交互')) return '温冷交互';
       // 脈 MYAKU
       if (roomName.includes('休 KYU') || roomName.includes('休　KYU')) return '休 KYU';
       if (roomName.includes('水 MIZU') || roomName.includes('水　MIZU')) return '水 MIZU';
@@ -948,7 +944,6 @@
     function getFacilityKey(name) {
       const keyMap = {
         'SAUNA SAKURADO': 'sakurado',
-        'GIRAFFE 南天神': 'giraffeMiamitenjin',
         'GIRAFFE 天神': 'giraffeTenjin',
         'KUDOCHI福岡中洲': 'kudochi',
         'SAUNA OOO FUKUOKA': 'saunaOoo',

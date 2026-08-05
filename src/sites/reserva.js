@@ -1,6 +1,6 @@
 /**
  * GIRAFFE (RESERVA) スクレイパー
- * 南天神店・天神店の両方を取得
+ * 天神店を取得
  *
  * FlareSolverrでCloudflare Cookieを取得 → Puppeteerで使用
  * フォールバック: AI Vision API
@@ -30,19 +30,6 @@ function invalidateCache() {
   cacheExpiresAt = null;
   console.log('  → GIRAFFE: Cookieキャッシュを無効化');
 }
-
-// GIRAFFE 南天神店（統一フォーマット：部屋名（時間/定員）価格）
-// ※実際のサイトで確認: 南天神店は「和の静寂」「温冷交互」
-const GIRAFFE_MINAMITENJIN_ROOMS = [
-  {
-    url: 'https://reserva.be/giraffe_minamitenjin/reserve?mode=service_staff&search_evt_no=72eJyzNDcztgQAAz8BEw&ctg_no=5aeJwzMjQyMAQAAuoA9w',
-    name: '和の静寂（120分/定員4名）¥5,500-9,900'
-  },
-  {
-    url: 'https://reserva.be/giraffe_minamitenjin/reserve?mode=service_staff&search_evt_no=4feJyzNLcwMAIAAzgBCw&ctg_no=5aeJwzMjQyMAQAAuoA9w',
-    name: '温冷交互（120分/定員4名）¥5,500-9,900'
-  }
-];
 
 // GIRAFFE 天神店（統一フォーマット：部屋名（時間/定員）価格）
 // ※実際のサイトで確認: 天神店は「陽」「陰」
@@ -391,22 +378,6 @@ async function scrapeStore(browser, rooms, storeName, cfData) {
 }
 
 /**
- * GIRAFFE 南天神店スクレイピング
- */
-async function scrapeMiamitenjin(browser) {
-  // FlareSolverrからCloudflare Cookieを取得
-  let cfData = null;
-  const isFlareSolverrAvailable = await flaresolverr.isAvailable();
-  if (isFlareSolverrAvailable) {
-    cfData = await getCloudfareCookies();
-  } else {
-    console.log('  FlareSolverr: 利用不可（直接Puppeteerを使用）');
-  }
-
-  return scrapeStore(browser, GIRAFFE_MINAMITENJIN_ROOMS, 'GIRAFFE南天神', cfData);
-}
-
-/**
  * GIRAFFE 天神店スクレイピング
  */
 async function scrapeTenjin(browser) {
@@ -415,9 +386,11 @@ async function scrapeTenjin(browser) {
   const isFlareSolverrAvailable = await flaresolverr.isAvailable();
   if (isFlareSolverrAvailable) {
     cfData = await getCloudfareCookies();
+  } else {
+    console.log('  FlareSolverr: 利用不可（直接Puppeteerを使用）');
   }
 
   return scrapeStore(browser, GIRAFFE_TENJIN_ROOMS, 'GIRAFFE天神', cfData);
 }
 
-module.exports = { scrapeMiamitenjin, scrapeTenjin };
+module.exports = { scrapeTenjin };
