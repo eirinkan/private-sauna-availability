@@ -863,6 +863,14 @@
         return `¥${price.toLocaleString()}`;
       }
 
+      // SAUNA SAKURADO（平日/土日祝で料金が異なる）
+      // 部屋名に埋め込まれた価格は土日祝料金なので、平日はここで差し替える
+      // 料金データは /api/pricing（src/pricing.js）が正
+      if (facilityName.includes('SAKURADO')) {
+        const price = getRoomPrice('sakurado', roomName);
+        if (price !== null) return `¥${price.toLocaleString()}`;
+      }
+
       return null; // 変更なし
     }
 
