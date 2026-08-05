@@ -66,14 +66,16 @@ const PRICING = {
     ]
   },
 
-  // SAUNA Giraffe 天神
+  // SAUNA Giraffe 天神（公式 https://sauna-giraffe.com/tenjin/ 記載の料金）
   giraffeTenjin: {
     name: 'GIRAFFE 天神',
     url: 'https://reserva.be/giraffe_minamitenjin',
-    note: '2名利用',
+    note: '1名まで基本料金、2名以上は1名追加¥3,300（ナイトパックは¥5,500）',
     plans: [
-      { name: '和の静寂 120分', price: 8000, duration: 120, capacity: 2 },
-      { name: '温冷交互 120分', price: 8000, duration: 120, capacity: 2 }
+      { name: '陰｜静の陰影 120分', weekday: 6600, weekend: 7700, duration: 120, capacity: 1, extraPerson: 3300, maxCapacity: 4 },
+      { name: '陽｜光の陽彩 120分', weekday: 6600, weekend: 7700, duration: 120, capacity: 1, extraPerson: 3300, maxCapacity: 7 },
+      { name: 'ナイトパック（月〜木）', price: 11000, duration: 480, capacity: 1, extraPerson: 5500, maxCapacity: 2 },
+      { name: 'ナイトパック（金土日祝）', price: 14300, duration: 480, capacity: 1, extraPerson: 5500, maxCapacity: 2 }
     ]
   },
 
