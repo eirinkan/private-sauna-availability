@@ -744,9 +744,11 @@
       'サンカク': { capacity: 2, base100: { weekday: 4500, weekend: 4500 }, base120: { weekday: 6000, weekend: 6000 }, additional: 2500 },
       'マル': { capacity: 4, base100: { weekday: 5000, weekend: 5000 }, base120: { weekday: 6500, weekend: 6500 }, additional: 2500 },
       'シカク': { capacity: 6, base120: { weekday: 7000, weekend: 9000 }, additional: 3000 },
-      // GIRAFFE
-      '「陰」静の陰影': { capacity: 4, base: 7700, additional: 3300, nightBase: 12100, nightAdditional: 5500 },
-      '「陽」光の陽彩': { capacity: 7, base: 6600, additional: 3300, nightBase: 11000, nightAdditional: 5500 },
+      // GIRAFFE 天神（公式 sauna-giraffe.com/tenjin/ 準拠）
+      // 120分: 平日¥6,600〜 / 土日祝¥7,700〜、ナイトパック: 月火水木¥11,000〜 / 金土日祝¥14,300〜
+      // 陰・陽で料金差はなく、曜日で変わる。2名以上は1名追加¥3,300（ナイトパックは¥5,500）
+      '「陰」静の陰影': { capacity: 4, base: { weekday: 6600, weekend: 7700 }, additional: 3300, nightBase: { weekday: 11000, weekend: 14300 }, nightAdditional: 5500 },
+      '「陽」光の陽彩': { capacity: 7, base: { weekday: 6600, weekend: 7700 }, additional: 3300, nightBase: { weekday: 11000, weekend: 14300 }, nightAdditional: 5500 },
       // BASE（定員2名、人数・曜日別料金）
       'BASE': {
         capacity: 2,
@@ -819,14 +821,17 @@
         return `¥${price.toLocaleString()}`;
       }
 
-      // GIRAFFE（人数別追加料金あり）
+      // GIRAFFE（曜日別料金＋人数別追加料金）
       if (pricingKey && guestPricing[pricingKey] && guestPricing[pricingKey].base && guestPricing[pricingKey].additional !== undefined) {
         const data = guestPricing[pricingKey];
         if (isNight && data.nightBase) {
-          const price = data.nightBase + (guests > 1 ? (guests - 1) * data.nightAdditional : 0);
+          // ナイトパックは「金土日祝」が上位料金（120分の「土日祝」とは区分が異なる）
+          const nightBase = isSelectedDateNightPeak() ? data.nightBase.weekend : data.nightBase.weekday;
+          const price = nightBase + (guests > 1 ? (guests - 1) * data.nightAdditional : 0);
           return `¥${price.toLocaleString()}`;
         }
-        const price = data.base + (guests > 1 ? (guests - 1) * data.additional : 0);
+        const base = isWeekend ? data.base.weekend : data.base.weekday;
+        const price = base + (guests > 1 ? (guests - 1) * data.additional : 0);
         return `¥${price.toLocaleString()}`;
       }
 
@@ -932,12 +937,23 @@
     }
 
     // 選択日が週末かどうか
+    // ※祝日は未対応（祝日も土日料金の施設が多いため、祝日は実際より安く表示される）
     function isSelectedDateWeekend() {
       // YYYY-MM-DD形式をローカル時間で解析（タイムゾーン問題を回避）
       const parts = dateSelect.value.split('-');
       const date = new Date(parts[0], parts[1] - 1, parts[2]);
       const day = date.getDay();
       return day === 0 || day === 6; // 日曜=0, 土曜=6
+    }
+
+    // 選択日がナイトパックの上位料金日（金土日祝）かどうか
+    // GIRAFFE天神のナイトパックは月火水木と金土日祝で料金が分かれる
+    // ※祝日は未対応（isSelectedDateWeekendと同じ制約）
+    function isSelectedDateNightPeak() {
+      const parts = dateSelect.value.split('-');
+      const date = new Date(parts[0], parts[1] - 1, parts[2]);
+      const day = date.getDay();
+      return day === 5 || day === 6 || day === 0; // 金=5, 土=6, 日=0
     }
 
     // 施設キーを取得
