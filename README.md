@@ -13,6 +13,7 @@
 | BASE Private sauna | Coubic |
 | 脈 MYAKU | spot-ly |
 | サウナヨーガン福岡天神 | RESERVA |
+| テンジンサウナ | select-type |
 
 ## 技術スタック
 
@@ -156,7 +157,8 @@ gcloud scheduler jobs create http sauna-refresh-job \
 │       ├── gflow.js    # SAUNA OOO
 │       ├── coubic.js   # BASE
 │       ├── myaku.js    # 脈 MYAKU
-│       └── yogan.js    # サウナヨーガン
+│       ├── yogan.js    # サウナヨーガン
+│       └── selecttype.js # テンジンサウナ
 └── data/               # スクレイピング結果保存（実行時生成）
 ```
 

@@ -79,6 +79,22 @@ const PRICING = {
     ]
   },
 
+  // テンジンサウナ（公式 https://www.tenjin-sauna.com/ 記載の税込価格）
+  // 曜日による料金差はなく、利用時間と人数で決まる
+  tenjinSauna: {
+    name: 'テンジンサウナ',
+    url: 'https://select-type.com/rsv/?id=1nwOWa5ac9Y',
+    note: '記載は1名料金、追加1名につき¥1,100（60〜180分から選択可）',
+    plans: [
+      { name: 'StandardRoom 60分', price: 2090, duration: 60, capacity: 1, extraPerson: 1100, maxCapacity: 2 },
+      { name: 'StandardRoom 120分', price: 4180, duration: 120, capacity: 1, extraPerson: 1100, maxCapacity: 2 },
+      { name: 'StandardRoom 180分', price: 6270, duration: 180, capacity: 1, extraPerson: 1100, maxCapacity: 2 },
+      { name: 'DeluxeRoom 60分', price: 3410, duration: 60, capacity: 1, extraPerson: 1100, maxCapacity: 4 },
+      { name: 'DeluxeRoom 120分', price: 6820, duration: 120, capacity: 1, extraPerson: 1100, maxCapacity: 4 },
+      { name: 'DeluxeRoom 180分', price: 10230, duration: 180, capacity: 1, extraPerson: 1100, maxCapacity: 4 }
+    ]
+  },
+
   // SAUNA SAKURADO（税込価格）
   sakurado: {
     name: 'SAUNA SAKURADO',

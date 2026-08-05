@@ -18,6 +18,7 @@ const gflow = require('./sites/gflow');
 const coubic = require('./sites/coubic');
 const myaku = require('./sites/myaku');
 const yogan = require('./sites/yogan');
+const selecttype = require('./sites/selecttype');
 
 // ヘルスモニタリング・通知
 const healthMonitor = require('./health-monitor');
@@ -216,6 +217,7 @@ async function scrapeIndependentGroup(browser, data) {
     { key: 'sakurado', name: 'SAKURADO', fn: sakurado.scrape },
     { key: 'saunaOoo', name: 'SAUNA OOO', fn: gflow.scrape },
     { key: 'base', name: 'BASE', fn: coubic.scrape },
+    { key: 'tenjinSauna', name: 'テンジンサウナ', fn: selecttype.scrape },
   ];
 
   for (const t of tasks) {
@@ -298,7 +300,8 @@ async function getAvailability(date) {
     { key: 'saunaOoo', name: 'SAUNA OOO FUKUOKA', url: 'https://sw.gflow.cloud/ooo-fukuoka/calendar_open', hpUrl: 'https://ooo-sauna.com/fukuoka.html', mapUrl: 'https://www.google.com/maps/search/?api=1&query=SAUNA+OOO+FUKUOKA' },
     { key: 'myaku', name: '脈 MYAKU', url: 'https://spot-ly.jp/ja/hotels/176', hpUrl: 'https://www.myaku-sauna.com/', mapUrl: 'https://www.google.com/maps/search/?api=1&query=脈+MYAKU+サウナ+天神', kyuStayUrl: 'https://hotel.travel.rakuten.co.jp/hotelinfo/plan/?f_no=191639&f_flg=PLAN' },
     { key: 'yogan', name: 'サウナヨーガン福岡天神', url: 'https://reserva.be/saunayogan/reserve?mode=service_staff&search_evt_no=eeeJyzMDY2MQIAAxwBBQ', hpUrl: 'https://yogan-sauna-fukuoka-tenjin.jp/', mapUrl: 'https://www.google.com/maps/search/?api=1&query=サウナヨーガン+福岡天神' },
-    { key: 'kudochi', name: 'KUDOCHI福岡中洲', url: 'https://kudochi-sauna.hacomono.jp/reserve/schedule/6/25', hpUrl: 'https://kudochi-sauna.com/fukuoka/', mapUrl: 'https://www.google.com/maps/search/?api=1&query=KUDOCHI+福岡中洲' }
+    { key: 'kudochi', name: 'KUDOCHI福岡中洲', url: 'https://kudochi-sauna.hacomono.jp/reserve/schedule/6/25', hpUrl: 'https://kudochi-sauna.com/fukuoka/', mapUrl: 'https://www.google.com/maps/search/?api=1&query=KUDOCHI+福岡中洲' },
+    { key: 'tenjinSauna', name: 'テンジンサウナ', url: 'https://select-type.com/rsv/?id=1nwOWa5ac9Y', hpUrl: 'https://www.tenjin-sauna.com/', mapUrl: 'https://www.google.com/maps/search/?api=1&query=テンジンサウナ+福岡+今泉' }
   ];
 
   for (const info of facilityInfo) {

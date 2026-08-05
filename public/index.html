@@ -762,7 +762,10 @@
       '水 MIZU': { capacity: 2, base: 6600, nightBase: 8800 },
       '火 HI': { capacity: 4, base: 7150, nightBase: 10120 },
       // サウナヨーガン（平日/土日祝で料金変動）
-      'プライベートサウナ': { capacity: 3, weekday: 9900, weekend: 13200 }
+      'プライベートサウナ': { capacity: 3, weekday: 9900, weekend: 13200 },
+      // テンジンサウナ（60分あたりの料金。曜日による差はなく、追加1名¥1,100）
+      'StandardRoom': { capacity: 2, base: 2090, additional: 1100 },
+      'DeluxeRoom': { capacity: 4, base: 3410, additional: 1100 }
     };
 
     // 部屋名から料金計算キーを取得
@@ -778,6 +781,9 @@
       if (roomName.includes('火 HI') || roomName.includes('火　HI')) return '火 HI';
       // サウナヨーガン
       if (roomName.includes('プライベートサウナ')) return 'プライベートサウナ';
+      // テンジンサウナ
+      if (roomName.includes('StandardRoom')) return 'StandardRoom';
+      if (roomName.includes('DeluxeRoom')) return 'DeluxeRoom';
       return null;
     }
 
@@ -821,8 +827,8 @@
         return `¥${price.toLocaleString()}`;
       }
 
-      // GIRAFFE（曜日別料金＋人数別追加料金）
-      if (pricingKey && guestPricing[pricingKey] && guestPricing[pricingKey].base && guestPricing[pricingKey].additional !== undefined) {
+      // GIRAFFE（曜日別料金＋人数別追加料金。baseが{weekday,weekend}のオブジェクト）
+      if (pricingKey && guestPricing[pricingKey] && typeof guestPricing[pricingKey].base === 'object' && guestPricing[pricingKey].additional !== undefined) {
         const data = guestPricing[pricingKey];
         if (isNight && data.nightBase) {
           // ナイトパックは「金土日祝」が上位料金（120分の「土日祝」とは区分が異なる）
@@ -832,6 +838,13 @@
         }
         const base = isWeekend ? data.base.weekend : data.base.weekday;
         const price = base + (guests > 1 ? (guests - 1) * data.additional : 0);
+        return `¥${price.toLocaleString()}`;
+      }
+
+      // テンジンサウナ（曜日差なし・60分あたりの料金＋人数別追加料金）
+      if (pricingKey && guestPricing[pricingKey] && typeof guestPricing[pricingKey].base === 'number' && guestPricing[pricingKey].additional !== undefined) {
+        const data = guestPricing[pricingKey];
+        const price = data.base + (guests > 1 ? (guests - 1) * data.additional : 0);
         return `¥${price.toLocaleString()}`;
       }
 
@@ -1030,7 +1043,8 @@
         'GIRAFFE 天神': 'giraffeTenjin',
         'KUDOCHI福岡中洲': 'kudochi',
         'SAUNA OOO FUKUOKA': 'saunaOoo',
-        'BASE Private sauna': 'base'
+        'BASE Private sauna': 'base',
+        'テンジンサウナ': 'tenjinSauna'
       };
       return keyMap[name] || null;
     }

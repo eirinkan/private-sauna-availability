@@ -355,6 +355,17 @@ try {
 - 正規表現は `[0-9]` を使用（`\d`はCloud Runで動作しない場合あり）
 - モーダル内の`disabled`属性で空き判定
 
+#### select-type系 (`select-type.com/rsv/`)
+- Cloudflare保護なし。ただし**HTTPリクエストだけではカレンダーを取得できない**（JSでのフォーム送信が必須）
+- カレンダーに到達するまで**3段階のクリックが必要**（この順序を守らないと空のページになる）
+  1. 「お部屋の種類」: `rsv.chgCrsCal(c_id)` またはラジオ `#c_id{c_id}` をクリック
+  2. 「ご利用時間」: `[onclick*="chgTimeMenu({tm_id}"]` をクリック
+  3. 週カレンダー（今日から7日分）が表示される
+- 各段階はページ遷移を伴うため `waitForNavigation` で待つこと
+- 空き判定: 空き枠のみ `<a onclick="rsv.loadRsvTimeModal(【UNIX秒】,...)">●</a>` を持つ。満席（×）はリンクを持たない
+- **時刻はUNIX秒で返る**ため、`+9時間`してJSTに変換する（Cloud RunはUTCで動くのでローカルタイムに頼らない）
+- c_id / tm_id は施設ごとに固定値。予約ページのHTMLから `chgCrsCal(数字)` `chgTimeMenu(数字` を拾って調べる
+
 ### 地域拡大時の注意点
 
 1. **命名規則**
